@@ -10,7 +10,7 @@ package com.github.harmanpa.jrecon.exceptions;
  *
  * @author pete
  */
-public class FinalizedException extends Exception {
+public class FinalizedException extends WallException {
 
     /**
      * Creates a new instance of <code>FinalizedException</code> without detail

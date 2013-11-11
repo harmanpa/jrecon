@@ -10,22 +10,22 @@ package com.github.harmanpa.jrecon.exceptions;
  *
  * @author pete
  */
-public class NotFinalizedException extends WallException {
+public class WallException extends Exception {
 
     /**
-     * Creates a new instance of <code>NotFinalizedException</code> without
-     * detail message.
+     * Creates a new instance of <code>WallException</code> without detail
+     * message.
      */
-    public NotFinalizedException() {
+    public WallException() {
     }
 
     /**
-     * Constructs an instance of <code>NotFinalizedException</code> with the
-     * specified detail message.
+     * Constructs an instance of <code>WallException</code> with the specified
+     * detail message.
      *
      * @param msg the detail message.
      */
-    public NotFinalizedException(String msg) {
+    public WallException(String msg) {
         super(msg);
     }
 }
