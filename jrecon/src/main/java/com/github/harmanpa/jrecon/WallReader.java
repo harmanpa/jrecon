@@ -3,6 +3,7 @@ package com.github.harmanpa.jrecon;
 import com.github.harmanpa.jrecon.exceptions.ReconException;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMap.Builder;
+import com.google.common.collect.Iterables;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -214,7 +215,7 @@ public class WallReader extends ReconReader {
         return new WallObjectReader(name, objectMeta);
     }
 
-    private Iterable<Row> readRows() throws ReconException, IOException {
+    private List<Row> readRows() throws ReconException, IOException {
         if (rows == null) {
             rows = new ArrayList<Row>(1000);
             byte[] four = new byte[4];
@@ -314,22 +315,26 @@ public class WallReader extends ReconReader {
         public WallTableReader(String name, String[] signals, Alias[] aliases, Map<String, Object> meta, Map<String, Map<String, Object>> signalMeta) {
             super(name, signals, aliases, meta, signalMeta);
         }
-
+        
         public Object[] getSignal(String signal) throws ReconException {
-            List<Object> out = new ArrayList<Object>();
-            int index = getSignalIndex(signal);
-            if (index < 0) {
-                throw new ReconException("Attempting to load non-existent signal");
-            }
-            String transform = getSignalTransform(signal);
+            return getSignal(signal, Object.class);
+        }
+        
+        public <T> T[] getSignal(String signal, Class<T> c) throws ReconException {
             try {
+                List<T> out = new ArrayList<T>(readRows().size());
+                int index = getSignalIndex(signal);
+                if (index < 0) {
+                    throw new ReconException("Attempting to load non-existent signal");
+                }
+                String transform = getSignalTransform(signal);
                 for (Row row : readRows()) {
                     if (getName().equals(row.getName())) {
                         // TODO: apply transform
-                        out.add(row.getColumn(index));
+                        out.add((T)row.getColumn(index));
                     }
                 }
-                return out.toArray(new Object[0]);
+                return Iterables.toArray(out, c);
             } catch (IOException ex) {
                 throw new ReconException("Failed to read signal " + signal, ex);
             }

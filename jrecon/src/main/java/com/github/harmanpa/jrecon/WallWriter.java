@@ -154,10 +154,6 @@ public class WallWriter extends ReconWriter {
             throw new TransposedException();
         }
 
-        public Object[] getSignal(String signal) throws ReconException {
-            throw new WriteOnlyException();
-        }
-
     }
 
     /**

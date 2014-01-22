@@ -3,6 +3,7 @@ package com.github.harmanpa.jrecon;
 import com.github.harmanpa.jrecon.exceptions.FinalizedException;
 import com.github.harmanpa.jrecon.exceptions.NotFinalizedException;
 import com.github.harmanpa.jrecon.exceptions.ReconException;
+import com.github.harmanpa.jrecon.exceptions.WriteOnlyException;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -214,6 +215,16 @@ public abstract class ReconWriter implements ReconFile {
             }
             signalMeta.get(signal).put(name, data);
         }
+
+        public final Object[] getSignal(String signal) throws ReconException {
+            throw new WriteOnlyException();
+        }
+
+        public final <T> T[] getSignal(String signal, Class<T> c) throws ReconException {
+            throw new WriteOnlyException();
+        }
+        
+        
     }
 
     abstract class ReconObjectWriter implements ReconObject {

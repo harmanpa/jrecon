@@ -49,10 +49,6 @@ public class MeldWriter extends ReconWriter {
             throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
         }
 
-        public Object[] getSignal(String signal) {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-        }
-
     }
 
     

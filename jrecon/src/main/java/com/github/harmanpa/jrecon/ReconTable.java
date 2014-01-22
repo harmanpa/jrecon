@@ -1,8 +1,4 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
+
 package com.github.harmanpa.jrecon;
 
 import com.github.harmanpa.jrecon.exceptions.ReconException;
@@ -37,4 +33,6 @@ public interface ReconTable {
     public void setSignal(String signal, Object... data) throws ReconException;
     
     public Object[] getSignal(String signal) throws ReconException;
+    
+    public <T> T[] getSignal(String signal, Class<T> c) throws ReconException;
 }
