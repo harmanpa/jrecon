@@ -1,90 +1,29 @@
 package com.github.harmanpa.jrecon;
 
-import com.github.harmanpa.jrecon.exceptions.FinalizedException;
-import com.github.harmanpa.jrecon.exceptions.NotFinalizedException;
-import com.github.harmanpa.jrecon.exceptions.WallException;
-import com.google.common.collect.Maps;
+import com.github.harmanpa.jrecon.exceptions.ReconException;
+import com.github.harmanpa.jrecon.exceptions.TransposedException;
+import com.github.harmanpa.jrecon.exceptions.WriteOnlyException;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
+import java.nio.channels.FileChannel;
 import java.util.Map;
-import org.bson.BSONEncoder;
-import org.bson.BasicBSONEncoder;
-import org.bson.BasicBSONObject;
-import org.bson.io.BasicOutputBuffer;
-import org.bson.io.OutputBuffer;
-import org.bson.types.BasicBSONList;
 
 /**
  * This class is responsible for writing wall files.
  *
  * @author pete
  */
-public class WallWriter {
+public class WallWriter extends ReconWriter {
 
     /**
      * This is a unique ID that every wall file starts with so it can be
      * identified/verified.
      */
-    private static final String WALL_ID = "recon:wall";
+    private static final String WALL_ID = "recon:wall:v01";
 
-    private final File file;
-    private final boolean verbose;
-    private boolean defined;
-    private final Map<String, WallTableWriter> tables;
-    private final Map<String, WallObjectWriter> objects;
-    private final BSONEncoder encoder;
-    private final OutputBuffer buffer;
-
-    public WallWriter(File file, boolean verbose) {
-        this.file = file;
-        this.verbose = verbose;
-        this.defined = false;
-        this.tables = Maps.newHashMap();
-        this.objects = Maps.newHashMap();
-        this.encoder = new BasicBSONEncoder();
-        this.buffer = new BasicOutputBuffer();
-        encoder.set(buffer);
-    }
-
-    /**
-     * This adds a new table to the wall. If the wall has been finalized, this
-     * will generated a FinalizedWall exception. If the name is already used by
-     * either a table or object, an exception will be raised. Otherwise, a
-     * WallTableWriter object will be returned by this method that can be used
-     * to populate the table.
-     *
-     * @param name
-     * @param signals
-     * @return
-     * @throws WallException
-     */
-    public WallTableWriter addTable(String name, String... signals) throws WallException {
-        checkNotFinalized();
-        checkName(name);
-        WallTableWriter table = new WallTableWriter(name, signals);
-        tables.put(name, table);
-        return table;
-    }
-
-    /**
-     * This adds a new object to the wall. If the wall has been finalized, this
-     * will generated a FinalizedWall exception. If the name is already used by
-     * either a table or object, an exception will be raised. Otherwise, a
-     * WallObjectWriter object will be returned by this method that can be used
-     * to populate the fields of the object.
-     *
-     * @param name
-     * @return
-     * @throws WallException
-     */
-    public WallObjectWriter addObject(String name) throws WallException {
-        checkNotFinalized();
-        checkName(name);
-        WallObjectWriter object = new WallObjectWriter(name);
-        objects.put(name, object);
-        return object;
+    public WallWriter(File file) {
+        super(file);
     }
 
     /**
@@ -93,157 +32,163 @@ public class WallWriter {
      * @throws IOException
      */
     public final void flush() throws IOException {
-        FileOutputStream os = new FileOutputStream(file);
-        buffer.pipe(os);
-        buffer.setPosition(0);
-        os.close();
+        FileChannel channel = new FileOutputStream(file, defined).getChannel();
+        buffer.flip();
+        channel.write(buffer);
+        buffer.compact();
+        channel.close();
     }
 
-    /**
-     *
-     * @return
-     */
-    public final boolean isVerbose() {
-        return verbose;
-    }
-
-    /**
-     *
-     * @return
-     */
-    public final boolean isDefined() {
-        return defined;
-    }
-
-    /**
-     * This checks any new name introduced (for either a table or an object) to
-     * make sure it is unique across the wall.
-     *
-     * @param name
-     * @throws WallException
-     */
-    private void checkName(String name) throws WallException {
-        if (tables.containsKey(name) || objects.containsKey(name)) {
-            throw new WallException(name + " already exists");
-        }
-    }
-
-    /**
-     *
-     * @throws WallException
-     */
-    private void checkNotFinalized() throws WallException {
-        if (defined) {
-            throw new FinalizedException();
-        }
-    }
-
-    /**
-     *
-     * @throws WallException
-     */
-    private void checkFinalized() throws WallException {
-        if (!defined) {
-            throw new NotFinalizedException();
-        }
-    }
 
     /**
      * This method is called when all tables and objects have been defined. Once
      * called, it is not possible to add new tables or objects. Furthermore, it
      * is not possible to add rows or fields until the wall has been finalized.
+     *
+     * @throws java.io.IOException
      */
-    public final void finalizeDefinitions() {
+    public final void finalizeDefinitions() throws IOException {
         if (!defined) {
-
+            bufferPacker.writeMapBegin(3);
+            // Write file meta
+            bufferPacker.write("fmeta");
+            bufferPacker.write(getFileMeta());
+            // Write table definitions
+            bufferPacker.write("tabs");
+            bufferPacker.writeMapBegin(getTables().size());
+            for (ReconTable table : getTables().values()) {
+                bufferPacker.write(table.getName());
+                bufferPacker.writeMapBegin(4);
+                bufferPacker.write("tmeta");
+                bufferPacker.write(table.getTableMeta());
+                bufferPacker.write("sigs");
+                bufferPacker.writeArrayBegin(table.getSignals().length);
+                for (String signal : table.getSignals()) {
+                    bufferPacker.write(signal);
+                }
+                bufferPacker.writeArrayEnd();
+                bufferPacker.write("als");
+                bufferPacker.writeMapBegin(table.getAliases().length);
+                for (Alias alias : table.getAliases()) {
+                    bufferPacker.write(alias.getAlias());
+                    bufferPacker.writeMapBegin(alias.getTransform().isEmpty() ? 1 : 2);
+                    bufferPacker.write("s");
+                    bufferPacker.write(alias.getOf());
+                    if (!alias.getTransform().isEmpty()) {
+                        bufferPacker.write("t");
+                        bufferPacker.write(alias.getTransform());
+                    }
+                    bufferPacker.writeMapEnd();
+                }
+                bufferPacker.writeMapEnd();
+                bufferPacker.write("vmeta");
+                bufferPacker.writeMapBegin(table.getSignals().length);
+                for (String s : table.getSignals()) {
+                    bufferPacker.write(s);
+                    bufferPacker.write(table.getSignalMeta(s));
+                }
+                bufferPacker.writeMapEnd();
+                bufferPacker.writeMapEnd();
+            }
+            bufferPacker.writeMapEnd();
+            // Write object definitions
+            bufferPacker.write("objs");
+            bufferPacker.writeMapBegin(getObjects().size());
+            for (ReconObject object : getObjects().values()) {
+                bufferPacker.write(object.getName());
+                bufferPacker.write(object.getObjectMeta());
+            }
+            bufferPacker.writeMapEnd();
+            bufferPacker.writeMapEnd();
+            int variableHeaderSize = bufferPacker.getBufferSize();
+            // Buffer fixed header
+            buffer.put(WALL_ID.getBytes());
+            buffer.putInt(variableHeaderSize);
+            // Buffer variable header
+            buffer.put(bufferPacker.toByteArray());
+            bufferPacker.clear();
             defined = true;
         }
     }
 
-    /**
-     * This class is used to add rows to a given wall.
-     */
-    public class WallTableWriter {
+    @Override
+    protected ReconTable createTable(String name, String[] signals) {
+        return new WallTableWriter(name, signals);
+    }
 
-        private final String name;
-        private final String[] signals;
+    @Override
+    protected ReconObject createObject(String name) {
+        return new WallObjectWriter(name);
+    }
 
-        WallTableWriter(String name, String[] signals) {
-            this.name = name;
-            this.signals = signals;
+
+    class WallTableWriter extends ReconTableWriter {
+
+        public WallTableWriter(String name, String[] signals) {
+            super(name, signals);
         }
 
-        /**
-         * Defines an alias associated with a specific table.
-         * The value of the alias variable will be computed by
-         * multiplying the base variable by the scale factor and then adding the
-         * offset value.
-         * 
-         * @param alias The name of the alias
-         * @param of The variable it is an alias of (cannot also be an alias)
-         * @throws WallException 
-         */
-        public void addAlias(String alias, String of) throws WallException {
-            addAlias(alias, of, 1.0);
+        public void addRow(Object... data) throws ReconException {
+            checkFinalized();
+            if (data.length != getSignals().length) {
+                throw new ReconException("Number of data elements must match number of signals");
+            }
+            try {
+                bufferPacker.writeMapBegin(1);
+                bufferPacker.write(getName());
+                bufferPacker.writeArrayBegin(data.length);
+                for (Object obj : data) {
+                    bufferPacker.write(obj);
+                }
+                bufferPacker.writeArrayEnd();
+                bufferPacker.writeMapEnd();
+                buffer.putInt(bufferPacker.getBufferSize());
+                buffer.put(bufferPacker.toByteArray());
+                bufferPacker.clear();
+            } catch (IOException ex) {
+                throw new ReconException("Error writing new row", ex);
+            }
         }
 
-        /**
-         * Defines an alias associated with a specific table.
-         * The value of the alias variable will be computed by
-         * multiplying the base variable by the scale factor and then adding the
-         * offset value.
-         * 
-         * @param alias The name of the alias
-         * @param of The variable it is an alias of (cannot also be an alias)
-         * @param scale The scale factor
-         * @throws WallException 
-         */
-        public void addAlias(String alias, String of, double scale) throws WallException {
-            addAlias(alias, of, scale, 0.0);
+        public void setSignal(String signal, Object... data) throws ReconException {
+            throw new TransposedException();
         }
 
-        /**
-         * Defines an alias associated with a specific table.
-         * The value of the alias variable will be computed by
-         * multiplying the base variable by the scale factor and then adding the
-         * offset value.
-         * 
-         * @param alias The name of the alias
-         * @param of The variable it is an alias of (cannot also be an alias)
-         * @param scale The scale factor
-         * @param offset The offset value between the alias and base variable
-         * @throws WallException 
-         */
-        public void addAlias(String alias, String of, double scale, double offset) throws WallException {
-            checkNotFinalized();
-            // TODO: Add the alias
+        public Object[] getSignal(String signal) throws ReconException {
+            throw new WriteOnlyException();
         }
 
-        /**
-         * Adds a row to the table
-         * @param data 
-         */
-        public void addRow(Object... data) {
-            BasicBSONList list = new BasicBSONList();
-            list.addAll(Arrays.asList(data));
-            encoder.putObject(new BasicBSONObject(name, list));
-        }
     }
 
     /**
      * This class is used to write object fields back to a wall.
      */
-    public class WallObjectWriter {
+    class WallObjectWriter extends ReconObjectWriter {
 
-        private final String name;
-
-        WallObjectWriter(String name) {
-            this.name = name;
+        public WallObjectWriter(String name) {
+            super(name);
         }
         
-        public void addField(String name, Object value) {
-            
+        public final void addField(String name, Object value) throws ReconException {
+            checkFinalized();
+            try {
+                bufferPacker.writeMapBegin(1);
+                bufferPacker.write(getName());
+                bufferPacker.writeMapBegin(1);
+                bufferPacker.write(name);
+                bufferPacker.write(value);
+                bufferPacker.writeMapEnd();
+                bufferPacker.writeMapEnd();
+                buffer.putInt(bufferPacker.getBufferSize());
+                buffer.put(bufferPacker.toByteArray());
+                bufferPacker.clear();
+            } catch (IOException ex) {
+                throw new ReconException("Error writing new field", ex);
+            }
         }
 
+        public final Map<String, Object> getFields() throws ReconException {
+            throw new WriteOnlyException();
+        }
     }
 }

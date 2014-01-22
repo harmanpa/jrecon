@@ -10,7 +10,7 @@ package com.github.harmanpa.jrecon.exceptions;
  *
  * @author pete
  */
-public class NotFinalizedException extends WallException {
+public class NotFinalizedException extends ReconException {
 
     /**
      * Creates a new instance of <code>NotFinalizedException</code> without
