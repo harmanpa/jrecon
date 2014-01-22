@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import org.msgpack.MessagePack;
 import org.msgpack.type.ArrayValue;
+import org.msgpack.type.MapValue;
 import org.msgpack.type.Value;
 import org.msgpack.unpacker.BufferUnpacker;
 import org.msgpack.unpacker.Unpacker;
@@ -75,6 +76,10 @@ public class WallReader extends ReconReader {
 
     private Object readObject(Unpacker unpacker) throws IOException {
         Value value = unpacker.readValue();
+        return valueToObject(value);
+    }
+    
+    private Object valueToObject(Value value) throws IOException {
         switch (value.getType()) {
             case ARRAY:
                 return arrayToObject(value.asArrayValue());
@@ -86,6 +91,8 @@ public class WallReader extends ReconReader {
                 return Integer.valueOf(value.asIntegerValue().getInt());
             case RAW:
                 return new String(value.asRawValue().getByteArray());
+            case MAP:
+                return mapToObject(value.asMapValue());
             default:
                 return null;
         }
@@ -123,6 +130,18 @@ public class WallReader extends ReconReader {
             default:
                 return new Object[0];
         }
+    }
+    
+    private Object mapToObject(MapValue map) throws IOException {
+        Value[] kv = map.getKeyValueArray();
+        if((kv.length%2)!=0) {
+            throw new IOException("Found map with odd number of keys+values");
+        }
+        ImmutableMap.Builder<Object,Object> builder = ImmutableMap.builder();
+        for(int i=0;i<kv.length/2;i=i+2) {
+            builder.put(valueToObject(kv[i]), valueToObject(kv[i+1]));
+        }
+        return builder.build();
     }
 
     private Map<String, Object> visitMetaMap(Unpacker unpacker) throws IOException {
