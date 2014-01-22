@@ -4,8 +4,9 @@ import com.github.harmanpa.jrecon.exceptions.ReconException;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMap.Builder;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
@@ -25,20 +26,21 @@ import org.msgpack.unpacker.Unpacker;
  */
 public class WallReader extends ReconReader {
 
-    private final File file;
+    private final InputStream stream;
     private Map<String, ReconTable> tables;
     private Map<String, ReconObject> objects;
     private Map<String, Object> meta;
-    private final RandomAccessFile raf;
     private List<Row> rows;
 
     public WallReader(File file) throws IOException {
-        this.file = file;
+        this(new FileInputStream(file));
+    }
 
-        this.raf = new RandomAccessFile(file, "r");
+    public WallReader(InputStream stream) throws IOException {
+        this.stream = stream;
         // Read the fixed header
         byte[] fixed = new byte[18];
-        if (18 != raf.read(fixed)) {
+        if (18 != this.stream.read(fixed)) {
             throw new IOException("Could not read fixed header");
         }
         if (!"recon:wall:v01".equals(new String(Arrays.copyOf(fixed, 14)))) {
@@ -47,7 +49,7 @@ public class WallReader extends ReconReader {
         int variableHeaderSize = ByteBuffer.wrap(Arrays.copyOfRange(fixed, 14, 18)).getInt();
         // Read the variable header
         byte[] variableHeaderBytes = new byte[variableHeaderSize];
-        if (variableHeaderSize != raf.read(variableHeaderBytes)) {
+        if (variableHeaderSize != this.stream.read(variableHeaderBytes)) {
             throw new IOException("Could not read variable header");
         }
         BufferUnpacker unpacker = new MessagePack().createBufferUnpacker(variableHeaderBytes);
@@ -218,14 +220,14 @@ public class WallReader extends ReconReader {
             byte[] four = new byte[4];
             boolean complete = false;
             while (!complete) {
-                switch (raf.read(four)) {
+                switch (this.stream.read(four)) {
                     case -1:
                         complete = true;
                         break;
                     case 4:
                         int size = ByteBuffer.wrap(four).order(ByteOrder.BIG_ENDIAN).getInt();
                         byte[] rowBytes = new byte[size];
-                        if (size != raf.read(rowBytes)) {
+                        if (size != this.stream.read(rowBytes)) {
                             throw new ReconException("Failed to read size of next row");
                         }
                         rows.add(visitRow(new MessagePack().createBufferUnpacker(rowBytes)));
