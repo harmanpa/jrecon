@@ -4,6 +4,7 @@ import com.github.harmanpa.jrecon.exceptions.FinalizedException;
 import com.github.harmanpa.jrecon.exceptions.NotFinalizedException;
 import com.github.harmanpa.jrecon.exceptions.ReconException;
 import com.github.harmanpa.jrecon.exceptions.WriteOnlyException;
+import com.github.harmanpa.jrecon.utils.ExpandableByteBuffer;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;

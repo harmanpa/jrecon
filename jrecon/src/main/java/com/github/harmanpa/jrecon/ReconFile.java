@@ -12,15 +12,15 @@ public interface ReconFile {
 
     public ReconTable addTable(String name, String... signals) throws ReconException;
 
-    public Map<String, ReconTable> getTables();
+    public Map<String, ReconTable> getTables() throws ReconException;
 
     public ReconObject addObject(String name) throws ReconException;
 
-    public Map<String, ReconObject> getObjects();
+    public Map<String, ReconObject> getObjects() throws ReconException;
 
     public void addMeta(String name, Object value) throws ReconException;
 
-    public Map<String, Object> getFileMeta();
+    public Map<String, Object> getFileMeta() throws ReconException;
 
     public void flush() throws IOException;
 

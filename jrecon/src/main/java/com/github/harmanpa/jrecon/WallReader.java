@@ -2,7 +2,6 @@ package com.github.harmanpa.jrecon;
 
 import com.github.harmanpa.jrecon.exceptions.ReconException;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableMap.Builder;
 import com.google.common.collect.Iterables;
 import java.io.File;
 import java.io.FileInputStream;
@@ -16,10 +15,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.msgpack.MessagePack;
-import org.msgpack.type.ArrayValue;
-import org.msgpack.type.MapValue;
-import org.msgpack.type.Value;
-import org.msgpack.unpacker.BufferUnpacker;
 import org.msgpack.unpacker.Unpacker;
 
 /**
@@ -29,9 +24,6 @@ import org.msgpack.unpacker.Unpacker;
 public class WallReader extends ReconReader {
 
     private final InputStream stream;
-    private Map<String, ReconTable> tables;
-    private Map<String, ReconObject> objects;
-    private Map<String, Object> meta;
     private List<Row> rows;
 
     public WallReader(File file) throws IOException {
@@ -40,135 +32,29 @@ public class WallReader extends ReconReader {
 
     public WallReader(InputStream stream) throws IOException {
         this.stream = stream;
-        // Read the fixed header
+    }
+
+    protected final String getFileTypeString() {
+        return "recon:wall:v01";
+    }
+
+    protected final byte[] readFixedHeaderBytes() throws IOException {
         byte[] fixed = new byte[18];
         if (18 != this.stream.read(fixed)) {
             throw new IOException("Could not read fixed header");
         }
-        if (!"recon:wall:v01".equals(new String(Arrays.copyOf(fixed, 14)))) {
-            throw new IOException("Incorrect file type");
-        }
-        int variableHeaderSize = ByteBuffer.wrap(Arrays.copyOfRange(fixed, 14, 18)).getInt();
-        // Read the variable header
-        byte[] variableHeaderBytes = new byte[variableHeaderSize];
-        if (variableHeaderSize != this.stream.read(variableHeaderBytes)) {
+        return fixed;
+    }
+
+    protected final byte[] readVariableHeaderBytes(int size) throws IOException {
+        byte[] variableHeaderBytes = new byte[size];
+        if (size != this.stream.read(variableHeaderBytes)) {
             throw new IOException("Could not read variable header");
         }
-        BufferUnpacker unpacker = new MessagePack().createBufferUnpacker(variableHeaderBytes);
-        visitFile(unpacker);
-        unpacker.close();
+        return variableHeaderBytes;
     }
 
-    private void visitFile(Unpacker unpacker) throws IOException {
-        int mapLength = unpacker.readMapBegin();
-        for (int i = 0; i < mapLength; i++) {
-            String name = unpacker.readString();
-            if ("fmeta".equals(name)) {
-                this.meta = visitMetaMap(unpacker);
-            } else if ("tabs".equals(name)) {
-                this.tables = visitTableMap(unpacker);
-            } else if ("objs".equals(name)) {
-                this.objects = visitObjectMap(unpacker);
-            }
-        }
-        unpacker.readMapEnd();
-    }
-
-    private Object readObject(Unpacker unpacker) throws IOException {
-        Value value = unpacker.readValue();
-        return valueToObject(value);
-    }
-    
-    private Object valueToObject(Value value) throws IOException {
-        switch (value.getType()) {
-            case ARRAY:
-                return arrayToObject(value.asArrayValue());
-            case BOOLEAN:
-                return Boolean.valueOf(value.asBooleanValue().getBoolean());
-            case FLOAT:
-                return Double.valueOf(value.asFloatValue().getDouble());
-            case INTEGER:
-                return Integer.valueOf(value.asIntegerValue().getInt());
-            case RAW:
-                return new String(value.asRawValue().getByteArray());
-            case MAP:
-                return mapToObject(value.asMapValue());
-            default:
-                return null;
-        }
-    }
-
-    private Object arrayToObject(ArrayValue array) {
-        if (array.size() == 0) {
-            return new Object[0];
-        }
-        switch (array.getElementArray()[0].getType()) {
-            case BOOLEAN:
-                Boolean[] out = new Boolean[array.size()];
-                for (int i = 0; i < array.size(); i++) {
-                    out[i] = Boolean.valueOf(array.getElementArray()[i].asBooleanValue().getBoolean());
-                }
-                return out;
-            case FLOAT:
-                Double[] out2 = new Double[array.size()];
-                for (int i = 0; i < array.size(); i++) {
-                    out2[i] = Double.valueOf(array.getElementArray()[i].asFloatValue().getDouble());
-                }
-                return out2;
-            case INTEGER:
-                Integer[] out3 = new Integer[array.size()];
-                for (int i = 0; i < array.size(); i++) {
-                    out3[i] = Integer.valueOf(array.getElementArray()[i].asIntegerValue().getInt());
-                }
-                return out3;
-            case RAW:
-                String[] out4 = new String[array.size()];
-                for (int i = 0; i < array.size(); i++) {
-                    out4[i] = String.valueOf(array.getElementArray()[i].asRawValue().getString());
-                }
-                return out4;
-            default:
-                return new Object[0];
-        }
-    }
-    
-    private Object mapToObject(MapValue map) throws IOException {
-        Value[] kv = map.getKeyValueArray();
-        if((kv.length%2)!=0) {
-            throw new IOException("Found map with odd number of keys+values");
-        }
-        ImmutableMap.Builder<Object,Object> builder = ImmutableMap.builder();
-        for(int i=0;i<kv.length/2;i=i+2) {
-            builder.put(valueToObject(kv[i]), valueToObject(kv[i+1]));
-        }
-        return builder.build();
-    }
-
-    private Map<String, Object> visitMetaMap(Unpacker unpacker) throws IOException {
-        int mapLength = unpacker.readMapBegin();
-        Builder<String, Object> builder = ImmutableMap.builder();
-        for (int i = 0; i < mapLength; i++) {
-            String name = unpacker.readString();
-            Object value = readObject(unpacker);
-            builder.put(name, value);
-        }
-        unpacker.readMapEnd();
-        return builder.build();
-    }
-
-    private Map<String, ReconTable> visitTableMap(Unpacker unpacker) throws IOException {
-        int mapLength = unpacker.readMapBegin();
-        Builder<String, ReconTable> builder = ImmutableMap.builder();
-        for (int i = 0; i < mapLength; i++) {
-            String name = unpacker.readString();
-            ReconTable table = visitTable(name, unpacker);
-            builder.put(name, table);
-        }
-        unpacker.readMapEnd();
-        return builder.build();
-    }
-
-    private ReconTable visitTable(String name, Unpacker unpacker) throws IOException {
+    protected final ReconTable visitTable(String name, Unpacker unpacker) throws IOException {
         Map<String, Object> tableMeta = new HashMap<String, Object>();
         Map<String, Map<String, Object>> signalMeta = new HashMap<String, Map<String, Object>>();
         List<String> signals = new ArrayList<String>();
@@ -217,19 +103,7 @@ public class WallReader extends ReconReader {
         return new WallTableReader(name, signals.toArray(new String[0]), aliases.toArray(new Alias[0]), tableMeta, signalMeta);
     }
 
-    private Map<String, ReconObject> visitObjectMap(Unpacker unpacker) throws IOException {
-        int mapLength = unpacker.readMapBegin();
-        Builder<String, ReconObject> builder = ImmutableMap.builder();
-        for (int i = 0; i < mapLength; i++) {
-            String name = unpacker.readString();
-            ReconObject object = visitObject(name, unpacker);
-            builder.put(name, object);
-        }
-        unpacker.readMapEnd();
-        return builder.build();
-    }
-
-    private ReconObject visitObject(String name, Unpacker unpacker) throws IOException {
+    protected final ReconObject visitObject(String name, Unpacker unpacker) throws IOException {
         Map<String, Object> objectMeta = visitMetaMap(unpacker);
         return new WallObjectReader(name, objectMeta);
     }
@@ -292,21 +166,6 @@ public class WallReader extends ReconReader {
         return row;
     }
 
-    public Map<String, ReconObject> getObjects() {
-        return objects;
-    }
-
-    public Map<String, ReconTable> getTables() {
-        return tables;
-    }
-
-    public Map<String, Object> getFileMeta() {
-        return meta;
-    }
-
-    public void flush() throws IOException {
-    }
-
     class WallObjectReader extends ReconObjectReader {
 
         public WallObjectReader(String name, Map<String, Object> meta) {
@@ -334,11 +193,11 @@ public class WallReader extends ReconReader {
         public WallTableReader(String name, String[] signals, Alias[] aliases, Map<String, Object> meta, Map<String, Map<String, Object>> signalMeta) {
             super(name, signals, aliases, meta, signalMeta);
         }
-        
+
         public Object[] getSignal(String signal) throws ReconException {
             return getSignal(signal, Object.class);
         }
-        
+
         public <T> T[] getSignal(String signal, Class<T> c) throws ReconException {
             try {
                 List<T> out = new ArrayList<T>(readRows().size());
@@ -350,7 +209,7 @@ public class WallReader extends ReconReader {
                 for (Row row : readRows()) {
                     if (getName().equals(row.getName())) {
                         // TODO: apply transform
-                        out.add((T)row.getColumn(index));
+                        out.add((T) row.getColumn(index));
                     }
                 }
                 return Iterables.toArray(out, c);

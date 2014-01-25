@@ -15,7 +15,7 @@ import org.junit.Test;
  */
 public class WallTest {
 
-    @Test
+    //@Test
     public void test0() {
         File f = new File(new File(System.getProperty("user.dir")), "src/test/resources/samples/test.wll");
         try {
