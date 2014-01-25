@@ -8,7 +8,16 @@
   <packaging>jar</packaging>
 
   <name>jrecon</name>
-  <url>http://maven.apache.org</url>
+  <url>https://github.com/harmanpa/jrecon</url>
+  <organization>CyDesign Limited</organization>
+  <contributors>
+      <contributor>
+          <name>Peter Harman</name>
+      </contributor>
+      <contributor>
+          <name>Morgan Cameron</name>
+      </contributor>
+  </contributors>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
