@@ -27,14 +27,18 @@ import com.github.harmanpa.jrecon.exceptions.FinalizedException;
 import com.github.harmanpa.jrecon.exceptions.NotFinalizedException;
 import com.github.harmanpa.jrecon.exceptions.ReconException;
 import com.github.harmanpa.jrecon.exceptions.WriteOnlyException;
+import com.github.harmanpa.jrecon.utils.ExpandableByteBuffer;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -53,7 +57,7 @@ public abstract class ReconWriter implements ReconFile {
     private final Map<String, ReconTable> tables;
     private final Map<String, ReconObject> objects;
     private final Map<String, Object> meta;
-    protected final ByteBuffer buffer;
+    protected final ExpandableByteBuffer buffer;
     protected final BufferPacker bufferPacker;
 
     public ReconWriter(File file) {
@@ -62,7 +66,7 @@ public abstract class ReconWriter implements ReconFile {
         this.tables = Maps.newHashMap();
         this.objects = Maps.newHashMap();
         this.meta = Maps.newHashMap();
-        this.buffer = ByteBuffer.allocate(8 * 1024 * 1024).order(ByteOrder.BIG_ENDIAN);
+        this.buffer = new ExpandableByteBuffer(ByteBuffer.allocate(8 * 1024 * 1024).order(ByteOrder.BIG_ENDIAN));
         this.bufferPacker = new MessagePack().createBufferPacker();
     }
 
@@ -166,6 +170,17 @@ public abstract class ReconWriter implements ReconFile {
     
     protected abstract ReconObject createObject(String name);
 
+    /**
+     * This flushes any pending rows of fields.
+     *
+     * @throws IOException
+     */
+    public final void flush() throws IOException {
+        FileChannel channel = new FileOutputStream(file, defined).getChannel();
+        buffer.writeToChannel(channel);
+        channel.close();
+    }
+    
     abstract class ReconTableWriter implements ReconTable {
 
         private final String name;

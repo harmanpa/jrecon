@@ -49,18 +49,6 @@ public class WallWriter extends ReconWriter {
         super(file);
     }
 
-    /**
-     * This flushes any pending rows of fields.
-     *
-     * @throws IOException
-     */
-    public final void flush() throws IOException {
-        FileChannel channel = new FileOutputStream(file, defined).getChannel();
-        buffer.flip();
-        channel.write(buffer);
-        buffer.compact();
-        channel.close();
-    }
 
 
     /**
@@ -126,7 +114,7 @@ public class WallWriter extends ReconWriter {
             int variableHeaderSize = bufferPacker.getBufferSize();
             // Buffer fixed header
             buffer.put(WALL_ID.getBytes());
-            buffer.putInt(variableHeaderSize);
+            buffer.putInteger(variableHeaderSize);
             // Buffer variable header
             buffer.put(bufferPacker.toByteArray());
             bufferPacker.clear();
@@ -165,7 +153,7 @@ public class WallWriter extends ReconWriter {
                 }
                 bufferPacker.writeArrayEnd();
                 bufferPacker.writeMapEnd();
-                buffer.putInt(bufferPacker.getBufferSize());
+                buffer.putInteger(bufferPacker.getBufferSize());
                 buffer.put(bufferPacker.toByteArray());
                 bufferPacker.clear();
             } catch (IOException ex) {
@@ -198,7 +186,7 @@ public class WallWriter extends ReconWriter {
                 bufferPacker.write(value);
                 bufferPacker.writeMapEnd();
                 bufferPacker.writeMapEnd();
-                buffer.putInt(bufferPacker.getBufferSize());
+                buffer.putInteger(bufferPacker.getBufferSize());
                 buffer.put(bufferPacker.toByteArray());
                 bufferPacker.clear();
             } catch (IOException ex) {

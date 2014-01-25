@@ -24,8 +24,11 @@
 package com.github.harmanpa.jrecon;
 
 import com.github.harmanpa.jrecon.exceptions.ReconException;
+import com.github.harmanpa.jrecon.exceptions.TransposedException;
+import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -40,52 +43,54 @@ public class MeldWriter extends ReconWriter {
 
     @Override
     protected ReconTable createTable(String name, String[] signals) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return new MeldTableWriter(name, signals);
     }
 
     @Override
     protected ReconObject createObject(String name) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    public void flush() throws IOException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return new MeldObjectWriter(name);
     }
 
     public void finalizeDefinitions() throws IOException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
-    
     class MeldTableWriter extends ReconTableWriter {
+
+        private final Map<String, Object[]> signalData;
 
         public MeldTableWriter(String name, String[] signals) {
             super(name, signals);
+            this.signalData = new HashMap<String, Object[]>();
         }
 
-        public void addRow(Object... data) throws ReconException {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        public final void addRow(Object... data) throws ReconException {
+            throw new TransposedException();
         }
 
         public void setSignal(String signal, Object... data) throws ReconException {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            checkNotFinalized();
+            signalData.put(signal, data);
         }
 
     }
 
-    
     class MeldObjectWriter extends ReconObjectWriter {
+
+        private final Map<String, Object> fieldData;
 
         public MeldObjectWriter(String name) {
             super(name);
+            this.fieldData = new HashMap<String, Object>();
         }
 
         public void addField(String name, Object value) throws ReconException {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            checkNotFinalized();
+            fieldData.put(name, value);
         }
 
         public Map<String, Object> getFields() throws ReconException {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            return ImmutableMap.copyOf(fieldData);
         }
 
     }
