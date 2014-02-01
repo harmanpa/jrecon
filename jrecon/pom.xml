@@ -35,6 +35,18 @@
             <url>file://${project.build.directory}/mvn-repo</url>
         </repository>
     </distributionManagement>
+    
+    <repositories>
+        <repository>
+            <id>jdsres-mvn-repo</id>
+            <url>https://raw.github.com/harmanpa/jdsres/mvn-repo/</url>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
+            </snapshots>
+        </repository>
+    </repositories>
+    
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
