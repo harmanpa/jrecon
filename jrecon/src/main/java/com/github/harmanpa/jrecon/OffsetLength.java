@@ -64,10 +64,7 @@ public class OffsetLength {
         if (this.offset != other.offset) {
             return false;
         }
-        if (this.length != other.length) {
-            return false;
-        }
-        return true;
+        return this.length == other.length;
     }
 
     @Override

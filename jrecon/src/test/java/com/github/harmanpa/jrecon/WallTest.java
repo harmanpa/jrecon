@@ -37,7 +37,7 @@ import org.junit.Test;
  */
 public class WallTest {
 
-    //@Test
+    @Test
     public void test0() {
         File f = new File(new File(System.getProperty("user.dir")), "src/test/resources/samples/test.wll");
         try {
@@ -49,11 +49,11 @@ public class WallTest {
             }
             for (ReconTable table : reader.getTables().values()) {
                 for (String signal : table.getSignals()) {
-                    System.out.println(table.getName() + "." + signal + "=" + Arrays.toString(table.getSignal(signal)));
+                    System.out.println(table.getName() + "." + signal + "=" + table.getSignal(signal).length);
                 }
                 for (Alias alias : table.getAliases()) {
                     String signal = alias.getAlias();
-                    System.out.println(table.getName() + "." + signal + "=" + Arrays.toString(table.getSignal(signal)));
+                    System.out.println(table.getName() + "." + signal + "=" + table.getSignal(signal).length);
                 }
             }
         } catch (Exception ex) {

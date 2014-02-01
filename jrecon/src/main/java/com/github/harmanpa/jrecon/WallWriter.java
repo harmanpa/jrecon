@@ -27,9 +27,7 @@ import com.github.harmanpa.jrecon.exceptions.ReconException;
 import com.github.harmanpa.jrecon.exceptions.TransposedException;
 import com.github.harmanpa.jrecon.exceptions.WriteOnlyException;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.channels.FileChannel;
 import java.util.Map;
 
 /**
@@ -48,8 +46,6 @@ public class WallWriter extends ReconWriter {
     public WallWriter(File file) {
         super(file);
     }
-
-
 
     /**
      * This method is called when all tables and objects have been defined. Once

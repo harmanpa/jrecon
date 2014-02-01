@@ -37,6 +37,22 @@ import java.util.Map;
  */
 public class MeldWriter extends ReconWriter {
 
+    private static final String MELD_ID = "recon:meld:v01";
+    private static final String H_METADATA = "fmeta";
+    private static final String H_TABLES = "tabs";
+    private static final String H_OBJECTS = "objs";
+    private static final String H_COMP = "comp";
+    private static final String T_INDICES = "toff";
+    private static final String T_VARIABLES = "vars";
+    private static final String T_METADATA = "tmeta";
+    private static final String T_VMETADATA = "vmeta";
+    private static final String V_INDEX = "i";
+    private static final byte[] V_INDHOLD = new byte[]{0x00, 0x00, 0x00, 0x00};
+    private static final String V_LENGTH = "l";
+    private static final String V_TRANS = "t";
+    private static final String A_OF = "s";
+    private static final String O_METADATA = "ometa";
+
     public MeldWriter(File file) {
         super(file);
     }
@@ -51,8 +67,75 @@ public class MeldWriter extends ReconWriter {
         return new MeldObjectWriter(name);
     }
 
-    public void finalizeDefinitions() throws IOException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    /**
+     * This method is called when all tables and objects have been defined. Once
+     * called, it is not possible to add new tables or objects. Furthermore, it
+     * is not possible to add rows or fields until the wall has been finalized.
+     *
+     * @throws java.io.IOException
+     */
+    public final void finalizeDefinitions() throws IOException {
+        if (!defined) {
+            bufferPacker.writeMapBegin(3);
+            // Write file meta
+            bufferPacker.write(H_METADATA);
+            bufferPacker.write(getFileMeta());
+            // Write table definitions
+            bufferPacker.write(H_TABLES);
+            bufferPacker.writeMapBegin(getTables().size());
+            for (ReconTable table : getTables().values()) {
+                bufferPacker.write(table.getName());
+                bufferPacker.writeMapBegin(4);
+                bufferPacker.write(T_METADATA);
+                bufferPacker.write(table.getTableMeta());
+                bufferPacker.write("sigs");
+                bufferPacker.writeArrayBegin(table.getSignals().length);
+                for (String signal : table.getSignals()) {
+                    bufferPacker.write(signal);
+                }
+                bufferPacker.writeArrayEnd();
+                bufferPacker.write("als");
+                bufferPacker.writeMapBegin(table.getAliases().length);
+                for (Alias alias : table.getAliases()) {
+                    bufferPacker.write(alias.getAlias());
+                    bufferPacker.writeMapBegin(alias.getTransform().isEmpty() ? 1 : 2);
+                    bufferPacker.write("s");
+                    bufferPacker.write(alias.getOf());
+                    if (!alias.getTransform().isEmpty()) {
+                        bufferPacker.write("t");
+                        bufferPacker.write(alias.getTransform());
+                    }
+                    bufferPacker.writeMapEnd();
+                }
+                bufferPacker.writeMapEnd();
+                bufferPacker.write("vmeta");
+                bufferPacker.writeMapBegin(table.getSignals().length);
+                for (String s : table.getSignals()) {
+                    bufferPacker.write(s);
+                    bufferPacker.write(table.getSignalMeta(s));
+                }
+                bufferPacker.writeMapEnd();
+                bufferPacker.writeMapEnd();
+            }
+            bufferPacker.writeMapEnd();
+            // Write object definitions
+            bufferPacker.write(H_OBJECTS);
+            bufferPacker.writeMapBegin(getObjects().size());
+            for (ReconObject object : getObjects().values()) {
+                bufferPacker.write(object.getName());
+                bufferPacker.write(object.getObjectMeta());
+            }
+            bufferPacker.writeMapEnd();
+            bufferPacker.writeMapEnd();
+            int variableHeaderSize = bufferPacker.getBufferSize();
+            // Buffer fixed header
+            buffer.put(MELD_ID.getBytes());
+            buffer.putInteger(variableHeaderSize);
+            // Buffer variable header
+            buffer.put(bufferPacker.toByteArray());
+            bufferPacker.clear();
+            defined = true;
+        }
     }
 
     class MeldTableWriter extends ReconTableWriter {
