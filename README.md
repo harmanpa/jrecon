@@ -63,3 +63,30 @@ utilizing cloud/remote storage solutions which will lead to more
 responsive interfaces and better data management practices and
 capacity.  The meld format is designed for this use case.
 
+
+# Usage
+
+To use from Maven, add the following to pom.xml:
+
+```
+    <repositories>
+        <repository>
+            <id>jrecon-mvn-repo</id>
+            <url>https://raw.github.com/harmanpa/jrecon/mvn-repo/</url>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
+            </snapshots>
+        </repository>
+    </repositories>
+```
+
+and
+
+```
+    <dependency>
+            <groupId>com.github.harmanpa</groupId>
+            <artifactId>jrecon</artifactId>
+            <version>1.0-SNAPSHOT</version>
+    </dependency>
+```
