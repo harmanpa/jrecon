@@ -50,7 +50,7 @@ import org.msgpack.packer.BufferPacker;
  *
  * @author pete
  */
-public abstract class ReconWriter implements ReconFile {
+public abstract class ReconWriter extends ReconFile {
 
     protected final File file;
     protected boolean defined;
@@ -74,6 +74,7 @@ public abstract class ReconWriter implements ReconFile {
      *
      * @return
      */
+    @Override
     public final boolean isDefined() {
         return defined;
     }
@@ -123,6 +124,7 @@ public abstract class ReconWriter implements ReconFile {
      * @return
      * @throws ReconException
      */
+    @Override
     public final ReconTable addTable(String name, String... signals) throws ReconException {
         checkNotFinalized();
         checkName(name);
@@ -142,6 +144,7 @@ public abstract class ReconWriter implements ReconFile {
      * @return
      * @throws ReconException
      */
+    @Override
     public final ReconObject addObject(String name) throws ReconException {
         checkNotFinalized();
         checkName(name);
@@ -150,19 +153,23 @@ public abstract class ReconWriter implements ReconFile {
         return object;
     }
 
+    @Override
     public final void addMeta(String name, Object value) throws ReconException {
         checkNotFinalized();
         meta.put(name, value);
     }
 
+    @Override
     public final Map<String, Object> getFileMeta() {
         return ImmutableMap.copyOf(meta);
     }
 
+    @Override
     public final Map<String, ReconTable> getTables() {
         return ImmutableMap.copyOf(tables);
     }
 
+    @Override
     public final Map<String, ReconObject> getObjects() {
         return ImmutableMap.copyOf(objects);
     }
@@ -175,6 +182,7 @@ public abstract class ReconWriter implements ReconFile {
      *
      * @throws IOException
      */
+    @Override
     public final void flush() throws IOException {
         FileChannel channel = new FileOutputStream(file, defined).getChannel();
         buffer.writeToChannel(channel);
@@ -197,10 +205,12 @@ public abstract class ReconWriter implements ReconFile {
             this.signalMeta = Maps.newHashMap();
         }
 
+        @Override
         public final void addAlias(String alias, String of) throws ReconException {
             addAlias(alias, of, "");
         }
 
+        @Override
         public final void addAlias(final String alias, String of, String transform) throws ReconException {
             checkNotFinalized();
             if (!Arrays.asList(signals).contains(of)) {
@@ -208,6 +218,7 @@ public abstract class ReconWriter implements ReconFile {
             }
             if (!Sets.filter(aliases, new Predicate<Alias>() {
 
+                @Override
                 public boolean apply(Alias t) {
                     return t.getAlias().equals(alias);
                 }
@@ -218,22 +229,27 @@ public abstract class ReconWriter implements ReconFile {
             aliases.add(a);
         }
 
+        @Override
         public final String getName() {
             return name;
         }
 
+        @Override
         public final String[] getSignals() {
             return signals;
         }
 
+        @Override
         public final Alias[] getAliases() {
             return Iterables.toArray(aliases, Alias.class);
         }
 
+        @Override
         public final Map<String, Object> getTableMeta() {
             return ImmutableMap.copyOf(meta);
         }
 
+        @Override
         public final Map<String, Object> getSignalMeta(String signal) {
             if (signalMeta.containsKey(signal)) {
                 return ImmutableMap.copyOf(signalMeta.get(signal));
@@ -241,11 +257,13 @@ public abstract class ReconWriter implements ReconFile {
             return ImmutableMap.of();
         }
 
+        @Override
         public final void addMeta(String name, Object data) throws ReconException {
             checkNotFinalized();
             meta.put(name, data);
         }
 
+        @Override
         public final void addSignalMeta(String signal, String name, Object data) throws ReconException {
             checkNotFinalized();
             if (!signalMeta.containsKey(signal)) {
@@ -254,10 +272,12 @@ public abstract class ReconWriter implements ReconFile {
             signalMeta.get(signal).put(name, data);
         }
 
+        @Override
         public final Object[] getSignal(String signal) throws ReconException {
             throw new WriteOnlyException();
         }
 
+        @Override
         public final <T> T[] getSignal(String signal, Class<T> c) throws ReconException {
             throw new WriteOnlyException();
         }
@@ -275,14 +295,17 @@ public abstract class ReconWriter implements ReconFile {
             this.meta = Maps.newHashMap();
         }
 
+        @Override
         public final String getName() {
             return name;
         }
 
+        @Override
         public final Map<String, Object> getObjectMeta() {
             return ImmutableMap.copyOf(meta);
         }
 
+        @Override
         public final void addMeta(String name, Object value) throws ReconException {
             checkNotFinalized();
             meta.put(name, value);

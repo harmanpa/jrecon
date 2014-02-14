@@ -43,7 +43,7 @@ import org.msgpack.unpacker.Unpacker;
  *
  * @author pete
  */
-public abstract class ReconReader implements ReconFile {
+public abstract class ReconReader extends ReconFile {
 
     private Map<String, ReconTable> tables;
     private Map<String, ReconObject> objects;
@@ -175,7 +175,7 @@ public abstract class ReconReader implements ReconFile {
             throw new IOException("Found map with odd number of keys+values");
         }
         ImmutableMap.Builder<Object, Object> builder = ImmutableMap.builder();
-        for (int i = 0; i < kv.length / 2; i = i + 2) {
+        for (int i = 0; i < kv.length; i = i + 2) {
             builder.put(valueToObject(kv[i]), valueToObject(kv[i + 1]));
         }
         return builder.build();
@@ -221,25 +221,31 @@ public abstract class ReconReader implements ReconFile {
 
     protected abstract ReconObject visitObject(String name, Unpacker unpacker) throws IOException;
 
+    @Override
     public final ReconTable addTable(String name, String... signals) throws ReconException {
         throw new FinalizedException();
     }
 
+    @Override
     public final ReconObject addObject(String name) throws ReconException {
         throw new FinalizedException();
     }
 
+    @Override
     public final void addMeta(String name, Object value) throws ReconException {
         throw new FinalizedException();
     }
 
+    @Override
     public final boolean isDefined() {
         return true;
     }
 
+    @Override
     public final void finalizeDefinitions() throws IOException {
     }
 
+    @Override
     public final Map<String, ReconObject> getObjects() throws ReconException {
         try {
             readHeader();
@@ -249,6 +255,7 @@ public abstract class ReconReader implements ReconFile {
         }
     }
 
+    @Override
     public final Map<String, ReconTable> getTables() throws ReconException {
         try {
             readHeader();
@@ -258,6 +265,7 @@ public abstract class ReconReader implements ReconFile {
         }
     }
 
+    @Override
     public final Map<String, Object> getFileMeta() throws ReconException {
         try {
             readHeader();
@@ -267,6 +275,7 @@ public abstract class ReconReader implements ReconFile {
         }
     }
 
+    @Override
     public final void flush() throws IOException {
     }
 
@@ -280,18 +289,22 @@ public abstract class ReconReader implements ReconFile {
             this.meta = meta;
         }
 
+        @Override
         public final String getName() {
             return name;
         }
 
+        @Override
         public final Map<String, Object> getObjectMeta() {
             return meta;
         }
 
+        @Override
         public final void addField(String name, Object value) throws ReconException {
             throw new ReadOnlyException();
         }
 
+        @Override
         public final void addMeta(String name, Object value) throws ReconException {
             throw new FinalizedException();
         }
@@ -314,46 +327,57 @@ public abstract class ReconReader implements ReconFile {
             this.signalMeta = signalMeta;
         }
 
+        @Override
         public final String getName() {
             return name;
         }
 
+        @Override
         public final String[] getSignals() {
             return signals;
         }
 
+        @Override
         public final Alias[] getAliases() {
             return aliases;
         }
 
+        @Override
         public final Map<String, Object> getTableMeta() {
             return meta;
         }
 
+        @Override
         public final Map<String, Object> getSignalMeta(String signal) {
             return signalMeta.containsKey(signal) ? signalMeta.get(signal) : new HashMap<String, Object>();
         }
 
+        @Override
         public final void addRow(Object... data) throws ReconException {
             throw new ReadOnlyException();
         }
 
+        @Override
         public final void addMeta(String name, Object data) throws ReconException {
             throw new FinalizedException();
         }
 
+        @Override
         public final void addSignalMeta(String signal, String name, Object data) throws ReconException {
             throw new FinalizedException();
         }
 
+        @Override
         public final void addAlias(String var, String alias, String transform) throws ReconException {
             throw new FinalizedException();
         }
 
+        @Override
         public final void addAlias(String var, String alias) throws ReconException {
             throw new FinalizedException();
         }
 
+        @Override
         public final void setSignal(String signal, Object... data) throws ReconException {
             throw new ReadOnlyException();
         }

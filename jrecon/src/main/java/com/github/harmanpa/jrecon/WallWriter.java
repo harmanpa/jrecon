@@ -54,6 +54,7 @@ public class WallWriter extends ReconWriter {
      *
      * @throws java.io.IOException
      */
+    @Override
     public final void finalizeDefinitions() throws IOException {
         if (!defined) {
             bufferPacker.writeMapBegin(3);
@@ -135,6 +136,7 @@ public class WallWriter extends ReconWriter {
             super(name, signals);
         }
 
+        @Override
         public void addRow(Object... data) throws ReconException {
             checkFinalized();
             if (data.length != getSignals().length) {
@@ -157,6 +159,7 @@ public class WallWriter extends ReconWriter {
             }
         }
 
+        @Override
         public void setSignal(String signal, Object... data) throws ReconException {
             throw new TransposedException();
         }
@@ -172,6 +175,7 @@ public class WallWriter extends ReconWriter {
             super(name);
         }
         
+        @Override
         public final void addField(String name, Object value) throws ReconException {
             checkFinalized();
             try {
@@ -190,6 +194,7 @@ public class WallWriter extends ReconWriter {
             }
         }
 
+        @Override
         public final Map<String, Object> getFields() throws ReconException {
             throw new WriteOnlyException();
         }

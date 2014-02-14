@@ -26,28 +26,63 @@ package com.github.harmanpa.jrecon;
 import com.github.harmanpa.jrecon.exceptions.ReconException;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  *
  * @author pete
  */
-public interface ReconFile {
+public abstract class ReconFile {
 
-    public ReconTable addTable(String name, String... signals) throws ReconException;
+    public abstract ReconTable addTable(String name, String... signals) throws ReconException;
 
-    public Map<String, ReconTable> getTables() throws ReconException;
+    public abstract Map<String, ReconTable> getTables() throws ReconException;
 
-    public ReconObject addObject(String name) throws ReconException;
+    public abstract ReconObject addObject(String name) throws ReconException;
 
-    public Map<String, ReconObject> getObjects() throws ReconException;
+    public abstract Map<String, ReconObject> getObjects() throws ReconException;
 
-    public void addMeta(String name, Object value) throws ReconException;
+    public abstract void addMeta(String name, Object value) throws ReconException;
 
-    public Map<String, Object> getFileMeta() throws ReconException;
+    public abstract Map<String, Object> getFileMeta() throws ReconException;
 
-    public void flush() throws IOException;
+    public abstract void flush() throws IOException;
 
-    public boolean isDefined();
+    public abstract boolean isDefined();
 
-    public void finalizeDefinitions() throws IOException;
+    public abstract void finalizeDefinitions() throws IOException;
+    
+    public final ReconTable findTable(String name) throws ReconException {
+        for(Entry<String,ReconTable> entry : getTables().entrySet()) {
+            if(name.equals(entry.getKey())) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+    
+    public final ReconTable findTableForSignal(String name) throws ReconException {
+        for(Entry<String,ReconTable> entry : getTables().entrySet()) {
+            for(String sig : entry.getValue().getSignals()) {
+                if(name.equals(sig)) {
+                    return entry.getValue();
+                }
+            }
+            for(Alias alias : entry.getValue().getAliases()) {
+                if(name.equals(alias.getAlias())) {
+                    return entry.getValue();
+                }
+            }
+        }
+        return null;
+    }
+    
+    public final ReconObject findObject(String name) throws ReconException {
+        for(Entry<String,ReconObject> entry : getObjects().entrySet()) {
+            if(name.equals(entry.getKey())) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
 }

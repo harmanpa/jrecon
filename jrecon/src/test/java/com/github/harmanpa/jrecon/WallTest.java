@@ -44,16 +44,16 @@ public class WallTest {
             WallReader reader = new WallReader(f);
             for (ReconObject obj : reader.getObjects().values()) {
                 for (Map.Entry<String, Object> entry : obj.getFields().entrySet()) {
-                    System.out.println(obj.getName() + "." + entry.getKey() + "=" + entry.getValue());
+                    System.out.println(obj.getName() + ": " + entry.getKey() + "=" + entry.getValue());
                 }
             }
             for (ReconTable table : reader.getTables().values()) {
                 for (String signal : table.getSignals()) {
-                    System.out.println(table.getName() + "." + signal + "=" + table.getSignal(signal).length);
+                    System.out.println(table.getName() + ": " + signal + "=" + table.getSignal(signal).length);
                 }
                 for (Alias alias : table.getAliases()) {
                     String signal = alias.getAlias();
-                    System.out.println(table.getName() + "." + signal + "=" + table.getSignal(signal).length);
+                    System.out.println(table.getName() + ": " + signal + "=" + table.getSignal(signal).length);
                 }
             }
         } catch (Exception ex) {

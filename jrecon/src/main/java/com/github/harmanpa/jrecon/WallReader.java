@@ -61,6 +61,7 @@ public class WallReader extends ReconReader {
         return "recon:wall:v01";
     }
 
+    @Override
     protected final byte[] readFixedHeaderBytes() throws IOException {
         byte[] fixed = new byte[18];
         if (18 != this.stream.read(fixed)) {
@@ -69,6 +70,7 @@ public class WallReader extends ReconReader {
         return fixed;
     }
 
+    @Override
     protected final byte[] readVariableHeaderBytes(int size) throws IOException {
         byte[] variableHeaderBytes = new byte[size];
         if (size != this.stream.read(variableHeaderBytes)) {
@@ -77,6 +79,7 @@ public class WallReader extends ReconReader {
         return variableHeaderBytes;
     }
 
+    @Override
     protected final ReconTable visitTable(String name, Unpacker unpacker) throws IOException {
         Map<String, Object> tableMeta = new HashMap<String, Object>();
         Map<String, Map<String, Object>> signalMeta = new HashMap<String, Map<String, Object>>();
@@ -126,6 +129,7 @@ public class WallReader extends ReconReader {
         return new WallTableReader(name, signals.toArray(new String[0]), aliases.toArray(new Alias[0]), tableMeta, signalMeta);
     }
 
+    @Override
     protected final ReconObject visitObject(String name, Unpacker unpacker) throws IOException {
         Map<String, Object> objectMeta = visitMetaMap(unpacker);
         return new WallObjectReader(name, objectMeta);
@@ -195,6 +199,7 @@ public class WallReader extends ReconReader {
             super(name, meta);
         }
 
+        @Override
         public Map<String, Object> getFields() throws ReconException {
             Map<String, Object> out = new HashMap<String, Object>();
             try {
@@ -217,10 +222,12 @@ public class WallReader extends ReconReader {
             super(name, signals, aliases, meta, signalMeta);
         }
 
+        @Override
         public Object[] getSignal(String signal) throws ReconException {
             return getSignal(signal, Object.class);
         }
 
+        @Override
         public <T> T[] getSignal(String signal, Class<T> c) throws ReconException {
             try {
                 List<T> out = new ArrayList<T>(readRows().size());
