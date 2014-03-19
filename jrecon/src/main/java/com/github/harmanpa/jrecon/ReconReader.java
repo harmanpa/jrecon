@@ -27,10 +27,13 @@ import com.github.harmanpa.jrecon.exceptions.FinalizedException;
 import com.github.harmanpa.jrecon.exceptions.ReadOnlyException;
 import com.github.harmanpa.jrecon.exceptions.ReconException;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.ObjectArrays;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.msgpack.MessagePack;
 import org.msgpack.type.ArrayValue;
@@ -340,6 +343,15 @@ public abstract class ReconReader extends ReconFile {
         @Override
         public final Alias[] getAliases() {
             return aliases;
+        }
+        
+        @Override
+        public final String[] getVariables() {
+            List<String> aliasnames = Lists.newArrayList();
+            for (Alias alias : aliases) {
+                aliasnames.add(alias.getAlias());
+            }
+            return ObjectArrays.concat(signals, aliasnames.toArray(new String[0]), String.class);
         }
 
         @Override

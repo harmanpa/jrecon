@@ -31,7 +31,9 @@ import com.github.harmanpa.jrecon.utils.ExpandableByteBuffer;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.ObjectArrays;
 import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -41,6 +43,7 @@ import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.msgpack.MessagePack;
@@ -242,6 +245,15 @@ public abstract class ReconWriter extends ReconFile {
         @Override
         public final Alias[] getAliases() {
             return Iterables.toArray(aliases, Alias.class);
+        }
+        
+        @Override
+        public final String[] getVariables() {
+            List<String> aliasnames = Lists.newArrayList();
+            for (Alias alias : aliases) {
+                aliasnames.add(alias.getAlias());
+            }
+            return ObjectArrays.concat(signals, aliasnames.toArray(new String[0]), String.class);
         }
 
         @Override

@@ -37,6 +37,8 @@ public interface ReconTable {
     public String[] getSignals();
 
     public Alias[] getAliases();
+    
+    public String[] getVariables();
 
     public Map<String, Object> getTableMeta();
 
