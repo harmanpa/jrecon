@@ -294,7 +294,20 @@ public abstract class ReconWriter extends ReconFile {
             throw new WriteOnlyException();
         }
         
+        @Override
+        public Object[] getSignal(int index) throws ReconException {
+            throw new WriteOnlyException();
+        }
+    
+        @Override
+        public <T> T[] getSignal(int index, Class<T> c) throws ReconException {
+            throw new WriteOnlyException();
+        }
         
+        @Override
+        public int getSignalIndex(String signal) throws ReconException {
+            throw new WriteOnlyException();
+        }       
     }
 
     abstract class ReconObjectWriter implements ReconObject {
