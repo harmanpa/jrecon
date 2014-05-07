@@ -229,12 +229,23 @@ public class WallReader extends ReconReader {
 
         @Override
         public <T> T[] getSignal(String signal, Class<T> c) throws ReconException {
+            int index = getSignalIndex(signal);
+            return getSignal(index, c);
+        }
+
+        @Override
+        public Object[] getSignal(int index) throws ReconException {
+            return getSignal(index, Object.class);
+        }
+
+        @Override
+        public <T> T[] getSignal(int index, Class<T> c) throws ReconException {
+            if (index < 0) {
+                throw new ReconException("Attempting to load non-existent signal");
+            }
+            String signal = getSignalName(index);
             try {
                 List<T> out = new ArrayList<T>(readRows().size());
-                int index = getSignalIndex(signal);
-                if (index < 0) {
-                    throw new ReconException("Attempting to load non-existent signal");
-                }
                 String transform = getSignalTransform(signal);
                 for (Row row : readRows()) {
                     if (getName().equals(row.getName())) {
@@ -248,7 +259,8 @@ public class WallReader extends ReconReader {
             }
         }
 
-        private int getSignalIndex(String signal) {
+        @Override
+        public int getSignalIndex(String signal) {
             for (int i = 0; i < getSignals().length; i++) {
                 if (signal.equals(getSignals()[i])) {
                     return i;
@@ -271,6 +283,12 @@ public class WallReader extends ReconReader {
             return "";
         }
 
+        private String getSignalName(int index) throws ReconException {
+            if (index > getSignals().length) {
+                throw new ReconException("Attempting to load non-existent signal");
+            }
+            return getSignals()[index];
+        }
     }
 
     class Row {

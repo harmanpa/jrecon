@@ -59,4 +59,10 @@ public interface ReconTable {
     public Object[] getSignal(String signal) throws ReconException;
     
     public <T> T[] getSignal(String signal, Class<T> c) throws ReconException;
+    
+    public Object[] getSignal(int index) throws ReconException;
+    
+    public <T> T[] getSignal(int index, Class<T> c) throws ReconException;
+    
+    public int getSignalIndex(String signal) throws ReconException;
 }
