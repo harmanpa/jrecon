@@ -24,11 +24,15 @@
 package com.github.harmanpa.jrecon;
 
 import java.io.IOException;
+import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import org.junit.Assert;
 import org.junit.Test;
 import org.msgpack.MessagePack;
+import org.msgpack.packer.BufferPacker;
 import org.msgpack.packer.Packer;
 import org.msgpack.template.Template;
+import org.msgpack.type.Value;
 import org.msgpack.unpacker.Unpacker;
 
 /**
@@ -86,5 +90,11 @@ public class MsgpackTest {
             }
         });
         Assert.assertArrayEquals(pack.write(objs), pack.write(dubs));
+    }
+    
+    @Test
+    public void test2() {
+        MessagePack pack = new MessagePack();
+        
     }
 }

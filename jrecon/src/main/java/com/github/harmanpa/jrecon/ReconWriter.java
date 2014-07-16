@@ -131,7 +131,7 @@ public abstract class ReconWriter extends ReconFile {
     public final ReconTable addTable(String name, String... signals) throws ReconException {
         checkNotFinalized();
         checkName(name);
-        ReconTable table = createTable(name, signals);
+        ReconTable table = createTable(name, Arrays.asList(signals));
         tables.put(name, table);
         return table;
     }
@@ -176,7 +176,7 @@ public abstract class ReconWriter extends ReconFile {
     public final Map<String, ReconObject> getObjects() {
         return ImmutableMap.copyOf(objects);
     }
-    protected abstract ReconTable createTable(String name, String[] signals);
+    protected abstract ReconTable createTable(String name, Iterable<String> signals);
     
     protected abstract ReconObject createObject(String name);
 
@@ -186,7 +186,7 @@ public abstract class ReconWriter extends ReconFile {
      * @throws IOException
      */
     @Override
-    public final void flush() throws IOException {
+    public void flush() throws IOException {
         FileChannel channel = new FileOutputStream(file, defined).getChannel();
         buffer.writeToChannel(channel);
         channel.close();
@@ -195,41 +195,36 @@ public abstract class ReconWriter extends ReconFile {
     abstract class ReconTableWriter implements ReconTable {
 
         private final String name;
-        private final String[] signals;
-        private final Set<Alias> aliases;
+        protected final Set<String> signals;        
         private final Map<String, Object> meta;
         private final Map<String, Map<String, Object>> signalMeta;
 
-        ReconTableWriter(String name, String[] signals) {
+        ReconTableWriter(String name, Iterable<String> signals) {
             this.name = name;
-            this.signals = signals;
-            this.aliases = Sets.newLinkedHashSet();
+            this.signals = Sets.newLinkedHashSet(signals);            
             this.meta = Maps.newHashMap();
             this.signalMeta = Maps.newHashMap();
+        }
+        
+        protected void checkSignalExistence(String signal, boolean shouldExist) throws ReconException {
+            if(shouldExist && !signals.contains(signal)) {
+                throw new ReconException("Signal " + signal + " does not exist");
+            }
+            if(!shouldExist && signals.contains(signal)) {
+                throw new ReconException("Signal " + signal + " already exists");
+            }
+        }
+
+        @Override
+        public void addSignal(String signal) throws ReconException {
+            checkNotFinalized();
+            checkSignalExistence(signal, false);
+            signals.add(signal);
         }
 
         @Override
         public final void addAlias(String alias, String of) throws ReconException {
             addAlias(alias, of, "");
-        }
-
-        @Override
-        public final void addAlias(final String alias, String of, String transform) throws ReconException {
-            checkNotFinalized();
-            if (!Arrays.asList(signals).contains(of)) {
-                throw new ReconException("Attempting to alias non-existent variable");
-            }
-            if (!Sets.filter(aliases, new Predicate<Alias>() {
-
-                @Override
-                public boolean apply(Alias t) {
-                    return t.getAlias().equals(alias);
-                }
-            }).isEmpty()) {
-                throw new ReconException("Alias already exists");
-            }
-            Alias a = new Alias(alias, of, transform);
-            aliases.add(a);
         }
 
         @Override
@@ -239,21 +234,7 @@ public abstract class ReconWriter extends ReconFile {
 
         @Override
         public final String[] getSignals() {
-            return signals;
-        }
-
-        @Override
-        public final Alias[] getAliases() {
-            return Iterables.toArray(aliases, Alias.class);
-        }
-        
-        @Override
-        public final String[] getVariables() {
-            List<String> aliasnames = Lists.newArrayList();
-            for (Alias alias : aliases) {
-                aliasnames.add(alias.getAlias());
-            }
-            return ObjectArrays.concat(signals, aliasnames.toArray(new String[0]), String.class);
+            return signals.toArray(new String[0]);
         }
 
         @Override
@@ -278,6 +259,7 @@ public abstract class ReconWriter extends ReconFile {
         @Override
         public final void addSignalMeta(String signal, String name, Object data) throws ReconException {
             checkNotFinalized();
+            checkSignalExistence(signal, true);
             if (!signalMeta.containsKey(signal)) {
                 signalMeta.put(signal, new HashMap<String, Object>());
             }
@@ -292,22 +274,7 @@ public abstract class ReconWriter extends ReconFile {
         @Override
         public final <T> T[] getSignal(String signal, Class<T> c) throws ReconException {
             throw new WriteOnlyException();
-        }
-        
-        @Override
-        public Object[] getSignal(int index) throws ReconException {
-            throw new WriteOnlyException();
-        }
-    
-        @Override
-        public <T> T[] getSignal(int index, Class<T> c) throws ReconException {
-            throw new WriteOnlyException();
-        }
-        
-        @Override
-        public int getSignalIndex(String signal) throws ReconException {
-            throw new WriteOnlyException();
-        }       
+        }           
     }
 
     abstract class ReconObjectWriter implements ReconObject {

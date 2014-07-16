@@ -51,7 +51,9 @@ public abstract class ReconReader extends ReconFile {
     private Map<String, ReconTable> tables;
     private Map<String, ReconObject> objects;
     private Map<String, Object> meta;
+    private boolean comp = false;
     private boolean headerRead = false;
+
 
     private int readFixedHeader() throws IOException {
         byte[] fixed = readFixedHeaderBytes();
@@ -60,18 +62,22 @@ public abstract class ReconReader extends ReconFile {
         }
         return ByteBuffer.wrap(Arrays.copyOfRange(fixed, 14, 18)).getInt();
     }
-
+    
     protected abstract String getFileTypeString();
 
     protected abstract byte[] readFixedHeaderBytes() throws IOException;
 
     protected abstract byte[] readVariableHeaderBytes(int size) throws IOException;
 
+    public boolean isCompressed() {
+        return comp;
+    }
+
     protected final void readHeader() throws IOException {
         if (!headerRead) {
             int variableHeaderSize = readFixedHeader();
             byte[] variableHeaderBytes = readVariableHeaderBytes(variableHeaderSize);
-            BufferUnpacker unpacker = new MessagePack().createBufferUnpacker(variableHeaderBytes);
+            BufferUnpacker unpacker = getMessagePack().createBufferUnpacker(variableHeaderBytes);
             visitHeader(unpacker);
             unpacker.close();
             headerRead = true;
@@ -88,6 +94,8 @@ public abstract class ReconReader extends ReconFile {
                 this.tables = visitTableMap(unpacker);
             } else if ("objs".equals(name)) {
                 this.objects = visitObjectMap(unpacker);
+            } else if ("comp".equals(name)) {
+                this.comp = unpacker.readBoolean();
             }
         }
         unpacker.readMapEnd();
@@ -318,14 +326,12 @@ public abstract class ReconReader extends ReconFile {
 
         private final String name;
         private final String[] signals;
-        private final Alias[] aliases;
         private final Map<String, Object> meta;
         private final Map<String, Map<String, Object>> signalMeta;
 
-        public ReconTableReader(String name, String[] signals, Alias[] aliases, Map<String, Object> meta, Map<String, Map<String, Object>> signalMeta) {
+        public ReconTableReader(String name, String[] signals, Map<String, Object> meta, Map<String, Map<String, Object>> signalMeta) {
             this.name = name;
             this.signals = signals;
-            this.aliases = aliases;
             this.meta = meta;
             this.signalMeta = signalMeta;
         }
@@ -341,20 +347,6 @@ public abstract class ReconReader extends ReconFile {
         }
 
         @Override
-        public final Alias[] getAliases() {
-            return aliases;
-        }
-        
-        @Override
-        public final String[] getVariables() {
-            List<String> aliasnames = Lists.newArrayList();
-            for (Alias alias : aliases) {
-                aliasnames.add(alias.getAlias());
-            }
-            return ObjectArrays.concat(signals, aliasnames.toArray(new String[0]), String.class);
-        }
-
-        @Override
         public final Map<String, Object> getTableMeta() {
             return meta;
         }
@@ -366,6 +358,11 @@ public abstract class ReconReader extends ReconFile {
 
         @Override
         public final void addRow(Object... data) throws ReconException {
+            throw new ReadOnlyException();
+        }
+
+        @Override
+        public void addSignal(String signal) throws ReconException {
             throw new ReadOnlyException();
         }
 

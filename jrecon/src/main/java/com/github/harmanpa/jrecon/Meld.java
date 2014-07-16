@@ -83,7 +83,16 @@ public class Meld {
                 newObject.addField(entry.getKey(), entry.getValue());
             }
         }
+        writer.finalizeDefinitions();
         // Iterate over rows, building table data
+        for(ReconTable table : reader.getTables().values()) {
+            ReconTable writerTable = writer.getTables().get(table.getName());
+            for(String signal : table.getSignals()) {
+                writerTable.setSignal(signal, table.getSignal(signal));
+            }
+        }
         // Write
+        
+        writer.flush();
     }
 }

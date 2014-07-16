@@ -25,11 +25,13 @@ package com.github.harmanpa.jrecon;
 
 import com.github.harmanpa.jrecon.exceptions.ReconException;
 import com.github.harmanpa.jrecon.exceptions.TransposedException;
+import com.github.harmanpa.jrecon.utils.ExpandableByteBuffer;
 import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import org.msgpack.packer.BufferPacker;
 
 /**
  *
@@ -38,27 +40,13 @@ import java.util.Map;
 public class MeldWriter extends ReconWriter {
 
     private static final String MELD_ID = "recon:meld:v01";
-    private static final String H_METADATA = "fmeta";
-    private static final String H_TABLES = "tabs";
-    private static final String H_OBJECTS = "objs";
-    private static final String H_COMP = "comp";
-    private static final String T_INDICES = "toff";
-    private static final String T_VARIABLES = "vars";
-    private static final String T_METADATA = "tmeta";
-    private static final String T_VMETADATA = "vmeta";
-    private static final String V_INDEX = "i";
-    private static final byte[] V_INDHOLD = new byte[]{0x00, 0x00, 0x00, 0x00};
-    private static final String V_LENGTH = "l";
-    private static final String V_TRANS = "t";
-    private static final String A_OF = "s";
-    private static final String O_METADATA = "ometa";
 
     public MeldWriter(File file) {
         super(file);
     }
 
     @Override
-    protected ReconTable createTable(String name, String[] signals) {
+    protected ReconTable createTable(String name, Iterable<String> signals) {
         return new MeldTableWriter(name, signals);
     }
 
@@ -74,37 +62,41 @@ public class MeldWriter extends ReconWriter {
      *
      * @throws java.io.IOException
      */
+    @Override
     public final void finalizeDefinitions() throws IOException {
         if (!defined) {
+            int lengthDifference = 0;
             bufferPacker.writeMapBegin(3);
             // Write file meta
-            bufferPacker.write(H_METADATA);
+            bufferPacker.write("fmeta");
             bufferPacker.write(getFileMeta());
             // Write table definitions
-            bufferPacker.write(H_TABLES);
+            bufferPacker.write("tabs");
             bufferPacker.writeMapBegin(getTables().size());
             for (ReconTable table : getTables().values()) {
                 bufferPacker.write(table.getName());
                 bufferPacker.writeMapBegin(4);
-                bufferPacker.write(T_METADATA);
+                bufferPacker.write("tmeta");
                 bufferPacker.write(table.getTableMeta());
-                bufferPacker.write("sigs");
+                bufferPacker.write("vars");
                 bufferPacker.writeArrayBegin(table.getSignals().length);
                 for (String signal : table.getSignals()) {
                     bufferPacker.write(signal);
                 }
                 bufferPacker.writeArrayEnd();
-                bufferPacker.write("als");
-                bufferPacker.writeMapBegin(table.getAliases().length);
-                for (Alias alias : table.getAliases()) {
-                    bufferPacker.write(alias.getAlias());
-                    bufferPacker.writeMapBegin(alias.getTransform().isEmpty() ? 1 : 2);
-                    bufferPacker.write("s");
-                    bufferPacker.write(alias.getOf());
-                    if (!alias.getTransform().isEmpty()) {
-                        bufferPacker.write("t");
-                        bufferPacker.write(alias.getTransform());
-                    }
+                bufferPacker.write("toff");
+                bufferPacker.writeMapBegin(table.getSignals().length);
+                for (String signal : table.getSignals()) {
+                    OffsetLength ol = ((MeldTableWriter) table).getSignalOffsetLength(signal);
+                    String transform = ((MeldTableWriter) table).getSignalTransform(signal);
+                    bufferPacker.write(signal);
+                    bufferPacker.writeMapBegin(3);
+                    bufferPacker.write("i");
+                    lengthDifference += writeIntegerByteDifference(bufferPacker, ol.getOffset());
+                    bufferPacker.write("l");
+                    lengthDifference += writeIntegerByteDifference(bufferPacker, ol.getLength());
+                    bufferPacker.write("t");
+                    bufferPacker.write(transform);
                     bufferPacker.writeMapEnd();
                 }
                 bufferPacker.writeMapEnd();
@@ -119,11 +111,19 @@ public class MeldWriter extends ReconWriter {
             }
             bufferPacker.writeMapEnd();
             // Write object definitions
-            bufferPacker.write(H_OBJECTS);
+            bufferPacker.write("objs");
             bufferPacker.writeMapBegin(getObjects().size());
             for (ReconObject object : getObjects().values()) {
+                OffsetLength ol = ((MeldObjectWriter) object).getOffsetLength();
                 bufferPacker.write(object.getName());
+                bufferPacker.writeMapBegin(3);
+                bufferPacker.write("ometa");
                 bufferPacker.write(object.getObjectMeta());
+                bufferPacker.write("i");
+                lengthDifference += writeIntegerByteDifference(bufferPacker, ol.getOffset());
+                bufferPacker.write("l");
+                lengthDifference += writeIntegerByteDifference(bufferPacker, ol.getLength());
+                bufferPacker.writeMapEnd();
             }
             bufferPacker.writeMapEnd();
             bufferPacker.writeMapEnd();
@@ -133,48 +133,115 @@ public class MeldWriter extends ReconWriter {
             buffer.putInteger(variableHeaderSize);
             // Buffer variable header
             buffer.put(bufferPacker.toByteArray());
+            pad(buffer, lengthDifference);
             bufferPacker.clear();
             defined = true;
         }
     }
 
+    private void pad(ExpandableByteBuffer buffer, int n) {
+        for (int i = 0; i < n; i++) {
+            buffer.put((byte) 0x00);
+        }
+    }
+
+    @Override
+    public void flush() throws IOException {
+        super.flush();
+    }
+
+    private int writeIntegerByteDifference(BufferPacker packer, int value) throws IOException {
+        int start = packer.getBufferSize();
+        packer.write(value);
+        return 4 - (packer.getBufferSize() - start);
+    }
+
     class MeldTableWriter extends ReconTableWriter {
 
-        private final Map<String, Object[]> signalData;
+        private final Map<String, OffsetLength> offsetLengths;
+        private final Map<String, String> transforms;
 
-        public MeldTableWriter(String name, String[] signals) {
+        public MeldTableWriter(String name, Iterable<String> signals) {
             super(name, signals);
-            this.signalData = new HashMap<String, Object[]>();
+            this.offsetLengths = new HashMap<String, OffsetLength>();
+            this.transforms = new HashMap<String, String>();
         }
 
+        @Override
         public final void addRow(Object... data) throws ReconException {
             throw new TransposedException();
         }
 
-        public void setSignal(String signal, Object... data) throws ReconException {
+        @Override
+        public final void addAlias(final String alias, String of, String transform) throws ReconException {
             checkNotFinalized();
-            signalData.put(signal, data);
+            checkSignalExistence(of, true);
+            checkSignalExistence(alias, false);
+            addSignal(alias);
+            transforms.put(alias, transform);
         }
 
+        @Override
+        public void setSignal(String signal, Object... data) throws ReconException {
+            checkFinalized();
+            //todo
+        }
+
+        @Override
+        public Alias[] getAliases() {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public String[] getVariables() {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        protected OffsetLength getSignalOffsetLength(String signal) {
+            if (offsetLengths.containsKey(signal)) {
+                return offsetLengths.get(signal);
+            }
+            return new OffsetLength(0, 0);
+        }
+
+        protected String getSignalTransform(String signal) {
+            if (transforms.containsKey(signal)) {
+                return transforms.get(signal);
+            }
+            return "";
+        }
     }
 
     class MeldObjectWriter extends ReconObjectWriter {
 
         private final Map<String, Object> fieldData;
+        private OffsetLength ol;
 
         public MeldObjectWriter(String name) {
             super(name);
             this.fieldData = new HashMap<String, Object>();
         }
 
+        @Override
         public void addField(String name, Object value) throws ReconException {
             checkNotFinalized();
             fieldData.put(name, value);
         }
 
+        @Override
         public Map<String, Object> getFields() throws ReconException {
             return ImmutableMap.copyOf(fieldData);
         }
 
+        protected void writeData() {
+            //TODO
+        }
+
+        protected OffsetLength getOffsetLength() {
+            if (ol == null) {
+                return new OffsetLength(0, 0);
+            }
+            return ol;
+        }
     }
 }

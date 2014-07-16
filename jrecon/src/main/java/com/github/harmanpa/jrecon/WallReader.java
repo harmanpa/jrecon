@@ -24,8 +24,11 @@
 package com.github.harmanpa.jrecon;
 
 import com.github.harmanpa.jrecon.exceptions.ReconException;
+import com.github.harmanpa.jrecon.utils.Transforms;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.collect.ObjectArrays;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -57,6 +60,7 @@ public class WallReader extends ReconReader {
         this.stream = stream;
     }
 
+    @Override
     protected final String getFileTypeString() {
         return "recon:wall:v01";
     }
@@ -123,6 +127,8 @@ public class WallReader extends ReconReader {
                     signalMeta.put(signal, map);
                 }
                 unpacker.readMapEnd();
+            } else {
+                throw new IOException("Unknown field " + entryName + " in defintion of table " + name);
             }
         }
         unpacker.readMapEnd();
@@ -151,7 +157,7 @@ public class WallReader extends ReconReader {
                         if (size != this.stream.read(rowBytes)) {
                             throw new ReconException("Failed to read size of next row");
                         }
-                        rows.add(visitRow(new MessagePack().createBufferUnpacker(rowBytes)));
+                        rows.add(visitRow(getMessagePack().createBufferUnpacker(rowBytes)));
                         break;
                     default:
                         throw new ReconException("Failed to read size of next row");
@@ -213,13 +219,29 @@ public class WallReader extends ReconReader {
                 throw new ReconException("Failed to read object fields " + getName(), ex);
             }
         }
-
     }
 
     class WallTableReader extends ReconTableReader {
 
-        public WallTableReader(String name, String[] signals, Alias[] aliases, Map<String, Object> meta, Map<String, Map<String, Object>> signalMeta) {
-            super(name, signals, aliases, meta, signalMeta);
+        private final Alias[] aliases;
+
+        WallTableReader(String name, String[] signals, Alias[] aliases, Map<String, Object> meta, Map<String, Map<String, Object>> signalMeta) {
+            super(name, signals, meta, signalMeta);
+            this.aliases = aliases;
+        }
+
+        @Override
+        public final Alias[] getAliases() {
+            return aliases;
+        }
+
+        @Override
+        public final String[] getVariables() {
+            List<String> aliasnames = Lists.newArrayList();
+            for (Alias alias : aliases) {
+                aliasnames.add(alias.getAlias());
+            }
+            return ObjectArrays.concat(getSignals(), aliasnames.toArray(new String[0]), String.class);
         }
 
         @Override
@@ -233,13 +255,11 @@ public class WallReader extends ReconReader {
             return getSignal(index, c);
         }
 
-        @Override
-        public Object[] getSignal(int index) throws ReconException {
+        protected Object[] getSignal(int index) throws ReconException {
             return getSignal(index, Object.class);
         }
 
-        @Override
-        public <T> T[] getSignal(int index, Class<T> c) throws ReconException {
+        protected <T> T[] getSignal(int index, Class<T> c) throws ReconException {
             if (index < 0) {
                 throw new ReconException("Attempting to load non-existent signal");
             }
@@ -249,8 +269,7 @@ public class WallReader extends ReconReader {
                 String transform = getSignalTransform(signal);
                 for (Row row : readRows()) {
                     if (getName().equals(row.getName())) {
-                        // TODO: apply transform
-                        out.add((T) row.getColumn(index));
+                        out.add(Transforms.apply(c, (T) row.getColumn(index), transform));
                     }
                 }
                 return Iterables.toArray(out, c);
@@ -259,8 +278,7 @@ public class WallReader extends ReconReader {
             }
         }
 
-        @Override
-        public int getSignalIndex(String signal) {
+        protected int getSignalIndex(String signal) {
             for (int i = 0; i < getSignals().length; i++) {
                 if (signal.equals(getSignals()[i])) {
                     return i;
@@ -366,7 +384,5 @@ public class WallReader extends ReconReader {
             }
             return true;
         }
-
     }
-
 }

@@ -26,9 +26,16 @@ package com.github.harmanpa.jrecon;
 import com.github.harmanpa.jrecon.exceptions.ReconException;
 import com.github.harmanpa.jrecon.exceptions.TransposedException;
 import com.github.harmanpa.jrecon.exceptions.WriteOnlyException;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.collect.ObjectArrays;
+import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * This class is responsible for writing wall files.
@@ -120,7 +127,7 @@ public class WallWriter extends ReconWriter {
     }
 
     @Override
-    protected ReconTable createTable(String name, String[] signals) {
+    protected ReconTable createTable(String name, Iterable<String> signals) {
         return new WallTableWriter(name, signals);
     }
 
@@ -129,11 +136,13 @@ public class WallWriter extends ReconWriter {
         return new WallObjectWriter(name);
     }
 
-
     class WallTableWriter extends ReconTableWriter {
 
-        public WallTableWriter(String name, String[] signals) {
+        private final Set<Alias> aliases;
+
+        public WallTableWriter(String name, Iterable<String> signals) {
             super(name, signals);
+            this.aliases = Sets.newLinkedHashSet();
         }
 
         @Override
@@ -160,10 +169,41 @@ public class WallWriter extends ReconWriter {
         }
 
         @Override
+        public final void addAlias(final String alias, String of, String transform) throws ReconException {
+            checkNotFinalized();
+            checkSignalExistence(of, true);
+            checkSignalExistence(alias, false);
+            if (!Sets.filter(aliases, new Predicate<Alias>() {
+                @Override
+                public boolean apply(Alias t) {
+                    return t.getAlias().equals(alias);
+                }
+            }).isEmpty()) {
+                throw new ReconException("Alias already exists");
+            }
+            Alias a = new Alias(alias, of, transform);
+            aliases.add(a);
+        }
+
+        @Override
+        public final Alias[] getAliases() {
+            return Iterables.toArray(aliases, Alias.class);
+        }
+
+        @Override
+        public final String[] getVariables() {
+            List<String> vars = Lists.newArrayList();
+            for (Alias alias : aliases) {
+                vars.add(alias.getAlias());
+            }
+            vars.addAll(signals);
+            return vars.toArray(new String[0]);
+        }
+
+        @Override
         public void setSignal(String signal, Object... data) throws ReconException {
             throw new TransposedException();
         }
-
     }
 
     /**
@@ -174,7 +214,7 @@ public class WallWriter extends ReconWriter {
         public WallObjectWriter(String name) {
             super(name);
         }
-        
+
         @Override
         public final void addField(String name, Object value) throws ReconException {
             checkFinalized();

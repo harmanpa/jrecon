@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2014 CyDesign Limited
+ * Copyright 2014 CyDesign Limited.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,42 +23,36 @@
  */
 package com.github.harmanpa.jrecon;
 
-import com.github.harmanpa.jrecon.exceptions.ReconException;
-import java.util.Map;
+import com.github.harmanpa.jrecon.io.FileRandomAccessResource;
+import java.io.File;
+import org.junit.Assert;
+import org.junit.Test;
 
 /**
  *
  * @author pete
  */
-public interface ReconTable {
+public class MeldTest {
 
-    public String getName();
-
-    public String[] getSignals();
-
-    public Alias[] getAliases();
-    
-    public String[] getVariables();
-
-    public Map<String, Object> getTableMeta();
-
-    public Map<String, Object> getSignalMeta(String signal);
-
-    public void addRow(Object... data) throws ReconException;
-
-    public void addMeta(String name, Object data) throws ReconException;
-
-    public void addSignalMeta(String signal, String name, Object data) throws ReconException;
-    
-    public void addSignal(String signal) throws ReconException;
-
-    public void addAlias(String var, String alias) throws ReconException;
-
-    public void addAlias(String var, String alias, String transform) throws ReconException;
-    
-    public void setSignal(String signal, Object... data) throws ReconException;
-    
-    public Object[] getSignal(String signal) throws ReconException;
-    
-    public <T> T[] getSignal(String signal, Class<T> c) throws ReconException;    
+    @Test
+    public void test() {
+        try {
+            File f = new File(new File(System.getProperty("user.dir")), "src/test/resources/samples/test.wll");
+            File f2 = new File("target/test.mld");
+            if (f2.exists()) {
+                f2.delete();
+            }
+            f2.createNewFile();
+            Meld.wallToMeld(f, f2);
+//            MeldReader reader = new MeldReader(new FileRandomAccessResource(f2));
+//            for(ReconTable table : reader.getTables().values()) {
+//                for(String signal : table.getSignals()) {
+//                    System.out.println(table.getName() + ":" + signal + "(" + Integer.toString(table.getSignal(signal).length) + ")");
+//                }
+//            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            Assert.fail(ex.getMessage());
+        }
+    }
 }
