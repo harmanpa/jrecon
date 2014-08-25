@@ -2,23 +2,23 @@
 <metadata modelVersion="1.1.0">
   <groupId>com.github.harmanpa</groupId>
   <artifactId>jrecon</artifactId>
-  <version>1.0-SNAPSHOT</version>
+  <version>1.1-SNAPSHOT</version>
   <versioning>
     <snapshot>
-      <timestamp>20140507.120522</timestamp>
+      <timestamp>20140825.101800</timestamp>
       <buildNumber>1</buildNumber>
     </snapshot>
-    <lastUpdated>20140507120522</lastUpdated>
+    <lastUpdated>20140825101800</lastUpdated>
     <snapshotVersions>
       <snapshotVersion>
         <extension>jar</extension>
-        <value>1.0-20140507.120522-1</value>
-        <updated>20140507120522</updated>
+        <value>1.1-20140825.101800-1</value>
+        <updated>20140825101800</updated>
       </snapshotVersion>
       <snapshotVersion>
         <extension>pom</extension>
-        <value>1.0-20140507.120522-1</value>
-        <updated>20140507120522</updated>
+        <value>1.1-20140825.101800-1</value>
+        <updated>20140825101800</updated>
       </snapshotVersion>
     </snapshotVersions>
   </versioning>
