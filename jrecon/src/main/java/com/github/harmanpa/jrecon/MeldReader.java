@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.msgpack.MessagePack;
 import org.msgpack.unpacker.BufferUnpacker;
 import org.msgpack.unpacker.Unpacker;
 
@@ -135,13 +134,13 @@ public class MeldReader extends ReconReader {
         int index = 0;
         int length = 0;
         int mapLength = unpacker.readMapBegin();
-        for(int i=0;i<mapLength;i++) {
+        for (int i = 0; i < mapLength; i++) {
             String entryName = unpacker.readString();
-            if("ometa".equals(entryName)) {
+            if ("ometa".equals(entryName)) {
                 objectMeta = visitMetaMap(unpacker);
-            } else if("i".equals(entryName)) {
+            } else if ("i".equals(entryName)) {
                 index = unpacker.readInt();
-            } else if("l".equals(entryName)) {
+            } else if ("l".equals(entryName)) {
                 length = unpacker.readInt();
             } else {
                 throw new IOException("Unknown field " + entryName + " in defintion of table " + name);
@@ -149,21 +148,24 @@ public class MeldReader extends ReconReader {
         }
         unpacker.readMapEnd();
         OffsetLength offsetLength = new OffsetLength(index, length);
-        return new MeldObjectReader(name, objectMeta==null?new HashMap<String,Object>():objectMeta, offsetLength);
+        return new MeldObjectReader(name, objectMeta == null ? new HashMap<String, Object>() : objectMeta, offsetLength);
     }
 
     protected <T> T[] readSignal(Class<T> t, OffsetLength offsetLength) throws ReconException {
+        if (offsetLength.getOffset() == 0 || offsetLength.getLength() == 0) {
+            throw new ReconException("Cannot read signal as offset and length invalid " + offsetLength);
+        }
         try {
             byte[] bytes = new byte[offsetLength.getLength()];
             if (offsetLength.getLength() == resource.read(offsetLength.getOffset(), bytes)) {
-                if(isCompressed()) {
+                if (isCompressed()) {
                     bytes = Compression.decompress(bytes);
                 }
                 BufferUnpacker unpacker = getMessagePack().createBufferUnpacker(bytes);
                 int arrayLength = unpacker.readArrayBegin();
                 T[] out = ObjectArrays.newArray(t, arrayLength);
                 for (int i = 0; i < arrayLength; i++) {
-                    out[i] = (T)readObject(unpacker);
+                    out[i] = (T) readObject(unpacker);
                 }
                 unpacker.readArrayEnd();
                 unpacker.close();
@@ -174,16 +176,16 @@ public class MeldReader extends ReconReader {
             throw new ReconException("Failed to read signal", ex);
         }
     }
-    
-    protected Map<String,Object> readObject(OffsetLength offsetLength) throws ReconException {
+
+    protected Map<String, Object> readObject(OffsetLength offsetLength) throws ReconException {
         try {
             byte[] bytes = new byte[offsetLength.getLength()];
             if (offsetLength.getLength() == resource.read(offsetLength.getOffset(), bytes)) {
-                if(isCompressed()) {
+                if (isCompressed()) {
                     bytes = Compression.decompress(bytes);
                 }
                 BufferUnpacker unpacker = getMessagePack().createBufferUnpacker(bytes);
-                Map<String,Object> out = visitMetaMap(unpacker);
+                Map<String, Object> out = visitMetaMap(unpacker);
                 unpacker.close();
                 return out;
             }
@@ -234,9 +236,10 @@ public class MeldReader extends ReconReader {
     }
 
     class MeldObjectReader extends ReconObjectReader {
+
         private final OffsetLength ol;
 
-        public MeldObjectReader(String name, Map<String, Object> meta, OffsetLength ol) {            
+        public MeldObjectReader(String name, Map<String, Object> meta, OffsetLength ol) {
             super(name, meta);
             this.ol = ol;
         }

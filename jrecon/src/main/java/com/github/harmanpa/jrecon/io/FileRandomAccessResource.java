@@ -42,6 +42,7 @@ public class FileRandomAccessResource implements RandomAccessResource {
         this.file = new RandomAccessFile(file, canWrite ? "rw" : "r");
     }
 
+    @Override
     public boolean canWrite() {
         return canWrite;
     }

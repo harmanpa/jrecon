@@ -27,15 +27,11 @@ import com.github.harmanpa.jrecon.exceptions.FinalizedException;
 import com.github.harmanpa.jrecon.exceptions.ReadOnlyException;
 import com.github.harmanpa.jrecon.exceptions.ReconException;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.ObjectArrays;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import org.msgpack.MessagePack;
 import org.msgpack.type.ArrayValue;
 import org.msgpack.type.MapValue;
 import org.msgpack.type.Value;
@@ -54,7 +50,6 @@ public abstract class ReconReader extends ReconFile {
     private boolean comp = false;
     private boolean headerRead = false;
 
-
     private int readFixedHeader() throws IOException {
         byte[] fixed = readFixedHeaderBytes();
         if (!getFileTypeString().equals(new String(Arrays.copyOf(fixed, 14)))) {
@@ -62,16 +57,12 @@ public abstract class ReconReader extends ReconFile {
         }
         return ByteBuffer.wrap(Arrays.copyOfRange(fixed, 14, 18)).getInt();
     }
-    
+
     protected abstract String getFileTypeString();
 
     protected abstract byte[] readFixedHeaderBytes() throws IOException;
 
     protected abstract byte[] readVariableHeaderBytes(int size) throws IOException;
-
-    public boolean isCompressed() {
-        return comp;
-    }
 
     protected final void readHeader() throws IOException {
         if (!headerRead) {
@@ -217,7 +208,7 @@ public abstract class ReconReader extends ReconFile {
     }
 
     protected abstract ReconTable visitTable(String name, Unpacker unpacker) throws IOException;
-    
+
     protected final Map<String, ReconObject> visitObjectMap(Unpacker unpacker) throws IOException {
         int mapLength = unpacker.readMapBegin();
         ImmutableMap.Builder<String, ReconObject> builder = ImmutableMap.builder();
@@ -250,6 +241,10 @@ public abstract class ReconReader extends ReconFile {
     @Override
     public final boolean isDefined() {
         return true;
+    }
+
+    public boolean isCompressed() {
+        return comp;
     }
 
     @Override
@@ -319,7 +314,6 @@ public abstract class ReconReader extends ReconFile {
         public final void addMeta(String name, Object value) throws ReconException {
             throw new FinalizedException();
         }
-
     }
 
     abstract class ReconTableReader implements ReconTable {
@@ -390,6 +384,5 @@ public abstract class ReconReader extends ReconFile {
         public final void setSignal(String signal, Object... data) throws ReconException {
             throw new ReadOnlyException();
         }
-
     }
 }

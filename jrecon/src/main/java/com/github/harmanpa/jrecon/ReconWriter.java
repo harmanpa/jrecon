@@ -61,7 +61,7 @@ public abstract class ReconWriter extends ReconFile {
     private final Map<String, ReconObject> objects;
     private final Map<String, Object> meta;
     protected final ExpandableByteBuffer buffer;
-    protected final BufferPacker bufferPacker;
+    protected final BufferPacker bufferPacker;    
 
     public ReconWriter(File file) {
         this.file = file;
@@ -186,7 +186,7 @@ public abstract class ReconWriter extends ReconFile {
      * @throws IOException
      */
     @Override
-    public void flush() throws IOException {
+    public void flush() throws IOException {        
         FileChannel channel = new FileOutputStream(file, defined).getChannel();
         buffer.writeToChannel(channel);
         channel.close();

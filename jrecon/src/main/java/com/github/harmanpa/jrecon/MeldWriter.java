@@ -23,12 +23,17 @@
  */
 package com.github.harmanpa.jrecon;
 
+import com.github.harmanpa.jrecon.exceptions.FinalizedException;
 import com.github.harmanpa.jrecon.exceptions.ReconException;
 import com.github.harmanpa.jrecon.exceptions.TransposedException;
+import com.github.harmanpa.jrecon.utils.Compression;
 import com.github.harmanpa.jrecon.utils.ExpandableByteBuffer;
 import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.Map;
 import org.msgpack.packer.BufferPacker;
@@ -40,9 +45,18 @@ import org.msgpack.packer.BufferPacker;
 public class MeldWriter extends ReconWriter {
 
     private static final String MELD_ID = "recon:meld:v01";
+    private boolean definitionsDirty = false;
+    private int maximumHeaderSize;
+    private RandomAccessFile raf;
+    private final boolean comp;
+
+    public MeldWriter(File file, boolean compressed) {
+        super(file);
+        this.comp = compressed;
+    }
 
     public MeldWriter(File file) {
-        super(file);
+        this(file, false);
     }
 
     @Override
@@ -64,79 +78,111 @@ public class MeldWriter extends ReconWriter {
      */
     @Override
     public final void finalizeDefinitions() throws IOException {
-        if (!defined) {
-            int lengthDifference = 0;
-            bufferPacker.writeMapBegin(3);
-            // Write file meta
-            bufferPacker.write("fmeta");
-            bufferPacker.write(getFileMeta());
-            // Write table definitions
-            bufferPacker.write("tabs");
-            bufferPacker.writeMapBegin(getTables().size());
-            for (ReconTable table : getTables().values()) {
-                bufferPacker.write(table.getName());
-                bufferPacker.writeMapBegin(4);
-                bufferPacker.write("tmeta");
-                bufferPacker.write(table.getTableMeta());
-                bufferPacker.write("vars");
-                bufferPacker.writeArrayBegin(table.getSignals().length);
-                for (String signal : table.getSignals()) {
-                    bufferPacker.write(signal);
-                }
-                bufferPacker.writeArrayEnd();
-                bufferPacker.write("toff");
-                bufferPacker.writeMapBegin(table.getSignals().length);
-                for (String signal : table.getSignals()) {
-                    OffsetLength ol = ((MeldTableWriter) table).getSignalOffsetLength(signal);
-                    String transform = ((MeldTableWriter) table).getSignalTransform(signal);
-                    bufferPacker.write(signal);
-                    bufferPacker.writeMapBegin(3);
-                    bufferPacker.write("i");
-                    lengthDifference += writeIntegerByteDifference(bufferPacker, ol.getOffset());
-                    bufferPacker.write("l");
-                    lengthDifference += writeIntegerByteDifference(bufferPacker, ol.getLength());
-                    bufferPacker.write("t");
-                    bufferPacker.write(transform);
-                    bufferPacker.writeMapEnd();
-                }
-                bufferPacker.writeMapEnd();
-                bufferPacker.write("vmeta");
-                bufferPacker.writeMapBegin(table.getSignals().length);
-                for (String s : table.getSignals()) {
-                    bufferPacker.write(s);
-                    bufferPacker.write(table.getSignalMeta(s));
-                }
-                bufferPacker.writeMapEnd();
-                bufferPacker.writeMapEnd();
+        if (defined && !definitionsDirty) {
+            return;
+        }
+        int lengthDifference = 0;
+        bufferPacker.writeMapBegin(3);
+        // Write file meta
+        bufferPacker.write("fmeta");
+        bufferPacker.write(getFileMeta());
+        // Write table definitions
+        bufferPacker.write("tabs");
+        bufferPacker.writeMapBegin(getTables().size());
+        for (ReconTable table : getTables().values()) {
+            bufferPacker.write(table.getName());
+            bufferPacker.writeMapBegin(4);
+            bufferPacker.write("tmeta");
+            bufferPacker.write(table.getTableMeta());
+            bufferPacker.write("vars");
+            bufferPacker.writeArrayBegin(table.getSignals().length);
+            for (String signal : table.getSignals()) {
+                bufferPacker.write(signal);
             }
-            bufferPacker.writeMapEnd();
-            // Write object definitions
-            bufferPacker.write("objs");
-            bufferPacker.writeMapBegin(getObjects().size());
-            for (ReconObject object : getObjects().values()) {
-                OffsetLength ol = ((MeldObjectWriter) object).getOffsetLength();
-                bufferPacker.write(object.getName());
+            bufferPacker.writeArrayEnd();
+            bufferPacker.write("toff");
+            bufferPacker.writeMapBegin(table.getSignals().length);
+            for (String signal : table.getSignals()) {
+                OffsetLength ol = ((MeldTableWriter) table).getSignalOffsetLength(signal);
+                String transform = ((MeldTableWriter) table).getSignalTransform(signal);
+                bufferPacker.write(signal);
                 bufferPacker.writeMapBegin(3);
-                bufferPacker.write("ometa");
-                bufferPacker.write(object.getObjectMeta());
                 bufferPacker.write("i");
                 lengthDifference += writeIntegerByteDifference(bufferPacker, ol.getOffset());
                 bufferPacker.write("l");
                 lengthDifference += writeIntegerByteDifference(bufferPacker, ol.getLength());
+                bufferPacker.write("t");
+                bufferPacker.write(transform);
                 bufferPacker.writeMapEnd();
             }
             bufferPacker.writeMapEnd();
+            bufferPacker.write("vmeta");
+            bufferPacker.writeMapBegin(table.getSignals().length);
+            for (String s : table.getSignals()) {
+                bufferPacker.write(s);
+                bufferPacker.write(table.getSignalMeta(s));
+            }
             bufferPacker.writeMapEnd();
-            int variableHeaderSize = bufferPacker.getBufferSize();
+            bufferPacker.writeMapEnd();
+        }
+        bufferPacker.writeMapEnd();
+        // Write object definitions
+        bufferPacker.write("objs");
+        bufferPacker.writeMapBegin(getObjects().size());
+        for (ReconObject object : getObjects().values()) {
+            OffsetLength ol = ((MeldObjectWriter) object).getOffsetLength();
+            bufferPacker.write(object.getName());
+            bufferPacker.writeMapBegin(3);
+            bufferPacker.write("ometa");
+            bufferPacker.write(object.getObjectMeta());
+            bufferPacker.write("i");
+            lengthDifference += writeIntegerByteDifference(bufferPacker, ol.getOffset());
+            bufferPacker.write("l");
+            lengthDifference += writeIntegerByteDifference(bufferPacker, ol.getLength());
+            bufferPacker.writeMapEnd();
+        }
+        bufferPacker.writeMapEnd();
+        bufferPacker.writeMapEnd();
+        int variableHeaderSize = bufferPacker.getBufferSize();
+        if (defined) {
+            if (maximumHeaderSize != MELD_ID.getBytes().length + 4 + variableHeaderSize + lengthDifference) {
+                throw new IOException("Incorrectly sized header");
+            }
+            RandomAccessFile randomAccessFile = getRandomAccessFile();
+            long pointer = randomAccessFile.getFilePointer();            
+            ByteBuffer bb = ByteBuffer.allocate(maximumHeaderSize);
+            bb.put(MELD_ID.getBytes());
+            bb.putInt(variableHeaderSize);
+            bb.put(bufferPacker.toByteArray());
+            for (int i = 0; i < lengthDifference; i++) {
+                bb.put((byte) 0x00);
+            }            
+            if (pointer >= maximumHeaderSize) {
+                randomAccessFile.seek(0L);
+                randomAccessFile.write(bb.array(), 0, maximumHeaderSize);
+                randomAccessFile.seek(pointer);
+            } else {
+                buffer.put(0, bb.array(), 0, maximumHeaderSize);
+            }
+        } else {
+            maximumHeaderSize = MELD_ID.getBytes().length + 4 + variableHeaderSize + lengthDifference;
             // Buffer fixed header
             buffer.put(MELD_ID.getBytes());
             buffer.putInteger(variableHeaderSize);
             // Buffer variable header
             buffer.put(bufferPacker.toByteArray());
             pad(buffer, lengthDifference);
-            bufferPacker.clear();
             defined = true;
         }
+        bufferPacker.clear();
+    }
+
+    private void setDefinitionsDirty() {
+        definitionsDirty = true;
+    }
+
+    public boolean isCompressed() {
+        return comp;
     }
 
     private void pad(ExpandableByteBuffer buffer, int n) {
@@ -145,15 +191,44 @@ public class MeldWriter extends ReconWriter {
         }
     }
 
+    private RandomAccessFile getRandomAccessFile() throws IOException {
+        if (raf == null) {
+            raf = new RandomAccessFile(file, "rw");
+        }
+        return raf;
+    }
+
     @Override
     public void flush() throws IOException {
-        super.flush();
+        for (ReconObject object : getObjects().values()) {
+            MeldObjectWriter objectWriter = (MeldObjectWriter) object;
+            if (objectWriter.getOffsetLength().getOffset() != 0 && objectWriter.getOffsetLength().getLength() != 0) {
+                try {
+                    objectWriter.writeData();
+                } catch (ReconException ex) {
+                    throw new IOException(ex);
+                }
+            }
+        }
+        if (definitionsDirty) {
+            finalizeDefinitions();
+        }
+        buffer.writeToRandomAccessFile(getRandomAccessFile());
     }
 
     private int writeIntegerByteDifference(BufferPacker packer, int value) throws IOException {
         int start = packer.getBufferSize();
         packer.write(value);
-        return 4 - (packer.getBufferSize() - start);
+        int diff = 5 - (packer.getBufferSize() - start);
+        return diff;
+    }
+
+    private int offset() throws IOException {
+        int offset = buffer.position();
+        if (raf != null) {
+            offset += (int) raf.getFilePointer();
+        }
+        return offset;
     }
 
     class MeldTableWriter extends ReconTableWriter {
@@ -184,17 +259,37 @@ public class MeldWriter extends ReconWriter {
         @Override
         public void setSignal(String signal, Object... data) throws ReconException {
             checkFinalized();
-            //todo
+            if (offsetLengths.containsKey(signal) && offsetLengths.get(signal).getLength() == 0 && offsetLengths.get(signal).getOffset() == 0) {
+                throw new FinalizedException("Signal already written");
+            }
+            try {
+                int offset = offset();
+                BufferPacker packer = getMessagePack().createBufferPacker();
+                packer.writeArrayBegin(data.length);
+                for (Object element : data) {
+                    packer.write(element);
+                }
+                packer.writeArrayEnd();
+                byte[] bytes = packer.toByteArray();
+                if (isCompressed()) {
+                    bytes = Compression.compress(bytes);
+                }
+                offsetLengths.put(signal, new OffsetLength(offset, bytes.length));
+                buffer.put(bytes);
+                setDefinitionsDirty();
+            } catch (IOException ex) {
+                throw new ReconException("Could not write signal " + getName(), ex);
+            }
         }
 
         @Override
         public Alias[] getAliases() {
-            throw new UnsupportedOperationException("Not supported yet.");
+            return new Alias[0];
         }
 
         @Override
         public String[] getVariables() {
-            throw new UnsupportedOperationException("Not supported yet.");
+            return signals.toArray(new String[0]);
         }
 
         protected OffsetLength getSignalOffsetLength(String signal) {
@@ -233,8 +328,30 @@ public class MeldWriter extends ReconWriter {
             return ImmutableMap.copyOf(fieldData);
         }
 
-        protected void writeData() {
-            //TODO
+        protected void writeData() throws ReconException {
+            checkFinalized();
+            if (ol != null && ol.getLength() == 0 && ol.getOffset() == 0) {
+                throw new FinalizedException("Object already written");
+            }
+            try {
+                int offset = offset();
+                BufferPacker packer = getMessagePack().createBufferPacker();
+                packer.writeMapBegin(fieldData.size());
+                for (Map.Entry<String, Object> entry : fieldData.entrySet()) {
+                    packer.write(entry.getKey());
+                    packer.write(entry.getValue());
+                }
+                packer.writeMapEnd();
+                byte[] bytes = packer.toByteArray();
+                if (isCompressed()) {
+                    bytes = Compression.compress(bytes);
+                }
+                ol = new OffsetLength(offset, bytes.length);
+                buffer.put(bytes);
+                setDefinitionsDirty();
+            } catch (IOException ex) {
+                throw new ReconException("Could not write object " + getName(), ex);
+            }
         }
 
         protected OffsetLength getOffsetLength() {

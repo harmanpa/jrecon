@@ -24,26 +24,22 @@
 package com.github.harmanpa.jrecon.utils;
 
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ByteChannel;
-import java.nio.channels.Channel;
 
 /**
  * A utility class that represents an expandable {@link ByteBuffer}. This class
  * is a decorated ByteBuffer. There are two ways to create an instance of this
  * class: allocate a new buffer with a default amount of bytes (default
- * constructor), or to wrap around a different ByteBuffer instance.
- * <p>
- * The internal ByteBuffer is always in write-mode (it's never flipped for
- * reading, except in {@link #getWritableBuffer()} and expands itself if data
- * needs to be written and the buffer is full. The buffer is expanded by a
- * default amount of bytes (specified by {@link #BUFFER_SIZE}). </p>
- * <p>
- * Custom implementations/overriding methods are welcome! </p> <strong>This
- * utility is not thread-safe!</strong>
- * <p>
- * </p>
+ * constructor), or to wrap around a different ByteBuffer instance. <p> The
+ * internal ByteBuffer is always in write-mode (it's never flipped for reading,
+ * except in {@link #getWritableBuffer()} and expands itself if data needs to be
+ * written and the buffer is full. The buffer is expanded by a default amount of
+ * bytes (specified by {@link #BUFFER_SIZE}). </p> <p> Custom
+ * implementations/overriding methods are welcome! </p> <strong>This utility is
+ * not thread-safe!</strong> <p> </p>
  *
  * @author Martin Tuskevicius
  * @author Peter Harman
@@ -99,6 +95,24 @@ public class ExpandableByteBuffer {
     public void put(byte[] bytes) {
         verifySize(bytes.length);
         buf.put(bytes);
+    }
+
+    /**
+     * Puts an array of bytes from the specified offset into the buffer in the specified position.
+     *
+     * @param position
+     * @param bytes
+     * @param offset
+     * @param length
+     */
+    public void put(int position, byte[] bytes, int offset, int length) {
+        if (length > buf.position()) {
+            verifySize(length - buf.position());
+        }
+        int pointer = buf.position();
+        buf.position(position);
+        buf.put(bytes, offset, length);
+        buf.position(pointer);
     }
 
     /**
@@ -256,11 +270,9 @@ public class ExpandableByteBuffer {
     }
 
     /**
-     * Retrieves a read-only version of this buffer.
-     * <p>
-     * <i>Trying to manually prepare this buffer for writing is discouraged. If
-     * this buffer needs to be written, please use
-     * {@link #getWritableBuffer()}.</i> </p>
+     * Retrieves a read-only version of this buffer. <p> <i>Trying to manually
+     * prepare this buffer for writing is discouraged. If this buffer needs to
+     * be written, please use {@link #getWritableBuffer()}.</i> </p>
      *
      * @return the buffer
      */
@@ -272,10 +284,8 @@ public class ExpandableByteBuffer {
      * Retrieves the writable version of this buffer. All the bytes from the
      * internal {@link ByteBuffer} are taken and put into a byte array (with the
      * size of the {@link ByteBuffer#position()}, and then the array is wrapped
-     * and returned (<tt>return ByteBuffer.wrap(array)</tt>).
-     * <p>
-     * <i>This is an optional method, this is just more convenient than doing so
-     * manually!</i>
+     * and returned (<tt>return ByteBuffer.wrap(array)</tt>). <p> <i>This is an
+     * optional method, this is just more convenient than doing so manually!</i>
      * </p>
      *
      * @return a writable version of this buffer
@@ -297,11 +307,22 @@ public class ExpandableByteBuffer {
         buf2.put(this.buf);
         this.buf = buf2;
     }
-    
-    public void writeToChannel(ByteChannel channel) throws IOException {
+
+    public int writeToChannel(ByteChannel channel) throws IOException {
         buf.flip();
-        channel.write(buf);
-        buf.compact();
+        int written = channel.write(buf);
+        buf.clear();
+        return written;
+    }
+
+    public void writeToRandomAccessFile(RandomAccessFile f) throws IOException {
+        buf.flip();
+        f.write(buf.array(), 0, buf.limit());
+        buf.clear();
+    }
+
+    public int position() {
+        return buf.position();
     }
 
     public interface Factory {
@@ -327,6 +348,5 @@ public class ExpandableByteBuffer {
                 return ByteBuffer.allocate(size).order(byteOrder);
             }
         }
-
     }
 }
