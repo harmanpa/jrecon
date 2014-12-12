@@ -23,11 +23,13 @@
  */
 package com.github.harmanpa.jrecon;
 
+import java.io.Serializable;
+
 /**
  *
  * @author pete
  */
-public class Alias {
+public class Alias implements Serializable {
     private final String alias;
     private final String of;
     private final String transform;

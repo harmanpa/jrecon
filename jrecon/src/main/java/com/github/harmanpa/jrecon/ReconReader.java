@@ -28,6 +28,7 @@ import com.github.harmanpa.jrecon.exceptions.ReadOnlyException;
 import com.github.harmanpa.jrecon.exceptions.ReconException;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -42,7 +43,7 @@ import org.msgpack.unpacker.Unpacker;
  *
  * @author pete
  */
-public abstract class ReconReader extends ReconFile {
+public abstract class ReconReader extends ReconFile implements Serializable {
 
     private Map<String, ReconTable> tables;
     private Map<String, ReconObject> objects;

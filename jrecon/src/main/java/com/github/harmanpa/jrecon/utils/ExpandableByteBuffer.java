@@ -60,6 +60,7 @@ public class ExpandableByteBuffer {
     /**
      * Creates a new expandable {@link ByteBuffer} by allocating a new buffer
      * with the default buffer size
+     * @param factory
      */
     public ExpandableByteBuffer(Factory factory) {
         this.factory = factory;

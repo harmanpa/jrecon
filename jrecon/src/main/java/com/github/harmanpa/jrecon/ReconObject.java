@@ -24,13 +24,14 @@
 package com.github.harmanpa.jrecon;
 
 import com.github.harmanpa.jrecon.exceptions.ReconException;
+import java.io.Serializable;
 import java.util.Map;
 
 /**
  *
  * @author pete
  */
-public interface ReconObject {
+public interface ReconObject extends Serializable {
 
     public String getName();
 

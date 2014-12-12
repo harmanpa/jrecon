@@ -23,11 +23,13 @@
  */
 package com.github.harmanpa.jrecon;
 
+import java.io.Serializable;
+
 /**
  *
  * @author pete
  */
-public class OffsetLength {
+public class OffsetLength implements Serializable {
     private final int offset;
     private final int length;
 

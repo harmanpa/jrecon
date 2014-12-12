@@ -24,12 +24,13 @@
 package com.github.harmanpa.jrecon.io;
 
 import java.io.IOException;
+import java.io.Serializable;
 
 /**
  *
  * @author pete
  */
-public interface RandomAccessResource {
+public interface RandomAccessResource extends Serializable {
     
     /**
      * Returns true if resource is writable

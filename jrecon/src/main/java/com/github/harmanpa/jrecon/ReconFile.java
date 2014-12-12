@@ -35,7 +35,7 @@ import org.msgpack.MessagePack;
  */
 public abstract class ReconFile {
 
-    private MessagePack mp;
+    private transient MessagePack mp;
 
     protected MessagePack getMessagePack() {
         if (mp == null) {
