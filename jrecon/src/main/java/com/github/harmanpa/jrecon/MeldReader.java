@@ -48,6 +48,10 @@ public class MeldReader extends ReconReader {
         this.resource = resource;
     }
 
+    public RandomAccessResource getResource() {
+        return resource;
+    }
+
     @Override
     protected final String getFileTypeString() {
         return "recon:meld:v01";
