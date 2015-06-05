@@ -68,11 +68,27 @@ public class Transforms {
             return affine(obj, args[0], args[1]);
         }
         if ("".equals(transform)) {
-            return obj;
+            return identity(obj);
         }
         throw new ReconException("Unsupported transform: " + transform);
     }
 
+    private static <T> T identity(T obj) throws ReconException {
+        if (obj instanceof Double) {
+            return (T) Double.valueOf(((Double) obj).doubleValue());
+        }
+        if (obj instanceof Integer) {
+            return (T) Integer.valueOf(((Integer) obj).intValue());
+        }
+        if (obj instanceof Boolean) {
+            return (T) Boolean.valueOf(((Boolean) obj).booleanValue());
+        }
+        if (obj instanceof String) {
+            return (T) obj.toString();
+        }
+        throw new ReconException("Cannot apply identity transform to " + obj);
+    }
+    
     private static <T> T inverse(T obj) throws ReconException {
         if (obj instanceof Double) {
             return (T) Double.valueOf(-1.0 * ((Double) obj).doubleValue());
