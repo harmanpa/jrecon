@@ -4,7 +4,7 @@
 
     <groupId>com.github.harmanpa</groupId>
     <artifactId>jrecon</artifactId>
-    <version>1.1-SNAPSHOT</version>
+    <version>1.2-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>jrecon</name>
@@ -57,12 +57,12 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>15.0</version>
+            <version>18.0</version>
         </dependency>
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
-            <version>4.3.3</version>
+            <version>4.5</version>
         </dependency>
         <dependency>
             <groupId>org.msgpack</groupId>
@@ -72,7 +72,7 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-compress</artifactId>
-            <version>1.8</version>
+            <version>1.9</version>
         </dependency>
         <dependency>
             <groupId>com.github.harmanpa</groupId>
