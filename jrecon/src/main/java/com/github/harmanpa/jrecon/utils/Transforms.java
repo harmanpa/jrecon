@@ -73,6 +73,7 @@ public class Transforms {
         throw new ReconException("Unsupported transform: " + transform);
     }
 
+    
     private static <T> T inverse(T obj) throws ReconException {
         if (obj instanceof Double) {
             return (T) Double.valueOf(-1.0 * ((Double) obj).doubleValue());
