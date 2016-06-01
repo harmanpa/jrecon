@@ -23,11 +23,14 @@
  */
 package com.github.harmanpa.jrecon.utils;
 
+import com.github.harmanpa.jrecon.io.RandomAccessResource;
+import com.oracle.jrockit.jfr.ContentType;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ByteChannel;
+import java.util.Arrays;
 
 /**
  * A utility class that represents an expandable {@link ByteBuffer}. This class
@@ -320,6 +323,14 @@ public class ExpandableByteBuffer {
         buf.flip();
         f.write(buf.array(), 0, buf.limit());
         buf.clear();
+    }
+
+    public long writeToRandomAccessResource(RandomAccessResource f, long location) throws IOException {
+        buf.flip();
+        long out = location + buf.limit();
+        f.write(location, Arrays.copyOfRange(buf.array(), 0, buf.limit()));
+        buf.clear();
+        return out;
     }
 
     public int position() {

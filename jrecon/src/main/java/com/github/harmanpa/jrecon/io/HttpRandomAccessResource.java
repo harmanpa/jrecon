@@ -44,10 +44,12 @@ public class HttpRandomAccessResource implements RandomAccessResource {
         this.uri = uri;
     }
 
+    @Override
     public boolean canWrite() {
         return false;
     }
 
+    @Override
     public int read(long location, byte[] bytes) throws IOException {
         HttpGet get = new HttpGet(uri);
         get.addHeader("Range", "bytes=" + Long.toString(location) + "-" + Integer.toString((int) location + bytes.length - 1));
@@ -60,6 +62,7 @@ public class HttpRandomAccessResource implements RandomAccessResource {
         throw new IOException(response.getStatusLine().getReasonPhrase());
     }
 
+    @Override
     public void write(long location, byte[] bytes) throws IOException {
         throw new UnsupportedOperationException("Write not supported");
     }

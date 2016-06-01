@@ -24,11 +24,19 @@
 package com.github.harmanpa.jrecon;
 
 import com.github.harmanpa.jrecon.exceptions.ReconException;
+import com.google.common.base.Function;
+import com.google.common.base.Functions;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 
 /**
  *
@@ -57,7 +65,11 @@ public class Meld {
 
     public static void wallToMeld(File wall, File meld, boolean compressed) throws IOException, ReconException {
         WallReader reader = new WallReader(wall);
-        MeldWriter writer = new MeldWriter(meld);
+        MeldWriter writer = new MeldWriter(meld, compressed);
+        wall2meld(reader, writer);
+    }
+
+    public static void wall2meld(WallReader reader, MeldWriter writer) throws ReconException, IOException {
         // Add meta data
         for (Map.Entry<String, Object> entry : reader.getFileMeta().entrySet()) {
             writer.addMeta(entry.getKey(), entry.getValue());
@@ -98,8 +110,46 @@ public class Meld {
             }
         }
         // Write
-
         writer.flush();
+    }
 
+    public static void csv2wall(CSVParser reader, Function<String, String> headerExtractor, Function<String, Object> valueExtractor, WallWriter writer) throws ReconException, IOException {
+        ReconTable table = writer.addTable("csv", Iterables.toArray(Iterables.transform(reader.getHeaderMap().keySet(), headerExtractor), String.class));
+        writer.finalizeDefinitions();
+        writer.flush();
+        for (CSVRecord row : reader) {
+            table.addRow(Iterators.toArray(Iterators.transform(row.iterator(), valueExtractor), Object.class));
+            writer.flush();
+        }
+    }
+
+    public static void csv2meld(CSVParser reader, Function<String, String> headerExtractor, Function<String, Object> valueExtractor, MeldWriter writer) throws IOException, ReconException {
+        ReconTable table = writer.addTable("csv", Iterables.toArray(Iterables.transform(reader.getHeaderMap().keySet(), headerExtractor), String.class));
+        writer.finalizeDefinitions();
+        writer.flush();
+        List<CSVRecord> rows = reader.getRecords();
+        for (String column : reader.getHeaderMap().keySet()) {
+            List<Object> values = new ArrayList<Object>(rows.size());
+            for (CSVRecord row : rows) {
+                String entry = row.get(column);
+                values.add(valueExtractor.apply(entry));
+            }
+            table.setSignal(headerExtractor.apply(column), values.toArray());
+            writer.flush();
+        }
+    }
+
+    public static Function<String, String> defaultHeaderExtractor() {
+        return Functions.identity();
+    }
+
+    public static Function<String, Object> defaultValueExtractor() {
+        return new Function<String, Object>() {
+
+            @Override
+            public Object apply(String f) {
+                return Double.valueOf(f);
+            }
+        };
     }
 }
