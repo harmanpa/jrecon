@@ -110,7 +110,7 @@ public class Meld {
             }
         }
         // Write
-        writer.flush();
+        writer.close();
     }
 
     public static void csv2wall(CSVParser reader, Function<String, String> headerExtractor, Function<String, Object> valueExtractor, WallWriter writer) throws ReconException, IOException {
@@ -121,6 +121,7 @@ public class Meld {
             table.addRow(Iterators.toArray(Iterators.transform(row.iterator(), valueExtractor), Object.class));
             writer.flush();
         }
+        writer.close();
     }
 
     public static void csv2meld(CSVParser reader, Function<String, String> headerExtractor, Function<String, Object> valueExtractor, MeldWriter writer) throws IOException, ReconException {
@@ -137,6 +138,7 @@ public class Meld {
             table.setSignal(headerExtractor.apply(column), values.toArray());
             writer.flush();
         }
+        writer.close();
     }
 
     public static Function<String, String> defaultHeaderExtractor() {

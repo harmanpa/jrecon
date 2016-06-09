@@ -28,12 +28,8 @@ import com.github.harmanpa.jrecon.exceptions.NotFinalizedException;
 import com.github.harmanpa.jrecon.exceptions.ReconException;
 import com.github.harmanpa.jrecon.exceptions.WriteOnlyException;
 import com.github.harmanpa.jrecon.utils.ExpandableByteBuffer;
-import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.ObjectArrays;
 import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -43,7 +39,6 @@ import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.msgpack.MessagePack;
@@ -190,6 +185,10 @@ public abstract class ReconWriter extends ReconFile {
         FileChannel channel = new FileOutputStream(file, defined).getChannel();
         buffer.writeToChannel(channel);
         channel.close();
+    }
+    
+    public void close() throws IOException {
+        flush();
     }
     
     abstract class ReconTableWriter implements ReconTable {

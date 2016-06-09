@@ -215,6 +215,13 @@ public class MeldWriter extends ReconWriter {
         buffer.writeToRandomAccessFile(getRandomAccessFile());
     }
 
+    @Override
+    public void close() throws IOException {
+        super.close();
+        raf.close();
+        raf = null;
+    }
+
     private int writeIntegerByteDifference(BufferPacker packer, int value) throws IOException {
         int start = packer.getBufferSize();
         packer.write(value);
