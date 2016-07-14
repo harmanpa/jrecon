@@ -3,7 +3,7 @@ jrecon
 
 Web and network friendly simulation data formats, Java interface.
 
-Implementation Copyright 2014 CyDesign Limited
+Implementation Copyright 2014-2016 CyDesign Limited
 
 See also:
 * Python interface: https://github.com/xogeny/recon
@@ -87,6 +87,6 @@ and
     <dependency>
             <groupId>com.github.harmanpa</groupId>
             <artifactId>jrecon</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <version>1.3-SNAPSHOT</version>
     </dependency>
 ```
