@@ -40,17 +40,14 @@ public class MeldRemoteReadTest {
     @Test
     public void test() {
         try {
-            String url = "http://github.com/harmanpa/jrecon/blob/master/jrecon/src/test/resources/samples/fullRobot.mld?raw=true";
+            String url = "http://github.com/harmanpa/jrecon/blob/master/src/test/resources/samples/fullRobot.mld?raw=true";
             String signal = "axis1.gear.bearingFriction.flange_a.phi";
             MeldReader reader = new MeldReader(new HttpRandomAccessResource(new URI(url)));
             ReconTable table = reader.findTableForSignal(signal);
             Double[] t = table.getSignal("Time", Double.class);
             Double[] x = table.getSignal(signal, Double.class);
             System.out.println(x.length);
-        } catch (ReconException ex) {
-            Logger.getLogger(MeldRemoteReadTest.class.getName()).log(Level.SEVERE, null, ex);
-            Assert.fail(ex.toString());
-        } catch (URISyntaxException ex) {
+        } catch (ReconException | URISyntaxException ex) {
             Logger.getLogger(MeldRemoteReadTest.class.getName()).log(Level.SEVERE, null, ex);
             Assert.fail(ex.toString());
         }
