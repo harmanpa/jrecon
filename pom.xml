@@ -4,7 +4,7 @@
 
     <groupId>com.github.harmanpa</groupId>
     <artifactId>jrecon</artifactId>
-    <version>1.3-SNAPSHOT</version>
+    <version>1.4-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>jrecon</name>
