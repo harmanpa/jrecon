@@ -69,24 +69,20 @@ capacity.  The meld format is designed for this use case.
 To use from Maven, add the following to pom.xml:
 
 ```
-    <repositories>
-        <repository>
-            <id>jrecon-mvn-repo</id>
-            <url>https://raw.github.com/harmanpa/jrecon/mvn-repo/</url>
-            <snapshots>
-                <enabled>true</enabled>
-                <updatePolicy>always</updatePolicy>
-            </snapshots>
-        </repository>
-    </repositories>
+	<repositories>
+		<repository>
+		    <id>jitpack.io</id>
+		    <url>https://jitpack.io</url>
+		</repository>
+	</repositories>
 ```
 
 and
 
 ```
-    <dependency>
-            <groupId>com.github.harmanpa</groupId>
-            <artifactId>jrecon</artifactId>
-            <version>1.3-SNAPSHOT</version>
-    </dependency>
+	<dependency>
+	    <groupId>com.github.harmanpa</groupId>
+	    <artifactId>jrecon</artifactId>
+	    <version>v1.4.0</version>
+	</dependency>
 ```
