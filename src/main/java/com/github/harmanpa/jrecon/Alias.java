@@ -64,10 +64,7 @@ public class Alias implements Serializable {
         if ((this.of == null) ? (other.of != null) : !this.of.equals(other.of)) {
             return false;
         }
-        if ((this.transform == null) ? (other.transform != null) : !this.transform.equals(other.transform)) {
-            return false;
-        }
-        return true;
+        return !((this.transform == null) ? (other.transform != null) : !this.transform.equals(other.transform));
     }
 
     @Override

@@ -23,7 +23,9 @@
  */
 package com.github.harmanpa.jrecon;
 
+import com.github.harmanpa.jrecon.exceptions.ReconException;
 import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.logging.Level;
@@ -56,8 +58,9 @@ public class WallTest {
                     System.out.println(table.getName() + ": " + signal + "=" + table.getSignal(signal).length);
                 }
             }
-        } catch (Exception ex) {
-            ex.printStackTrace();
+        } catch (ReconException ex) {
+            Assert.fail(ex.getMessage());
+        } catch (IOException ex) {
             Assert.fail(ex.getMessage());
         }
     }
@@ -123,7 +126,10 @@ public class WallTest {
                 }
             }
 
-        } catch (Exception ex) {
+        } catch (ReconException ex) {
+            Logger.getLogger(WallTest.class.getName()).log(Level.SEVERE, null, ex);
+            Assert.fail();
+        } catch (IOException ex) {
             Logger.getLogger(WallTest.class.getName()).log(Level.SEVERE, null, ex);
             Assert.fail();
         }

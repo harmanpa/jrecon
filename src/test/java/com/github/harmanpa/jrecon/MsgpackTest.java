@@ -24,15 +24,11 @@
 package com.github.harmanpa.jrecon;
 
 import java.io.IOException;
-import java.math.BigInteger;
-import java.nio.ByteBuffer;
 import org.junit.Assert;
 import org.junit.Test;
 import org.msgpack.MessagePack;
-import org.msgpack.packer.BufferPacker;
 import org.msgpack.packer.Packer;
 import org.msgpack.template.Template;
-import org.msgpack.type.Value;
 import org.msgpack.unpacker.Unpacker;
 
 /**
@@ -53,6 +49,7 @@ public class MsgpackTest {
         MessagePack pack = new MessagePack();
         pack.register(Object[].class, new Template<Object[]>() {
 
+            @Override
             public void write(Packer packer, Object[] t) throws IOException {
                 packer.writeArrayBegin(t.length);
                 for(Object o : t) {
@@ -61,6 +58,7 @@ public class MsgpackTest {
                 packer.writeArrayEnd();
             }
 
+            @Override
             public void write(Packer packer, Object[] t, boolean bln) throws IOException {
                 packer.writeArrayBegin(t.length);
                 for(Object o : t) {
@@ -69,6 +67,7 @@ public class MsgpackTest {
                 packer.writeArrayEnd();
             }
 
+            @Override
             public Object[] read(Unpacker unpckr, Object[] t) throws IOException {
                 int n = unpckr.readArrayBegin();
                 Object[] out = new Object[n];
@@ -79,6 +78,7 @@ public class MsgpackTest {
                 return out;
             }
 
+            @Override
             public Object[] read(Unpacker unpckr, Object[] t, boolean bln) throws IOException {
                 int n = unpckr.readArrayBegin();
                 Object[] out = new Object[n];

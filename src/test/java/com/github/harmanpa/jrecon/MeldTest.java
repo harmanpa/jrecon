@@ -24,12 +24,9 @@
 package com.github.harmanpa.jrecon;
 
 import com.github.harmanpa.jrecon.exceptions.ReconException;
-import com.github.harmanpa.jrecon.io.HttpRandomAccessResource;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Arrays;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import com.github.harmanpa.jrecon.io.FileRandomAccessResource;
+import java.io.File;
+import java.io.IOException;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -37,23 +34,28 @@ import org.junit.Test;
  *
  * @author pete
  */
-public class MeldRemoteReadTest {
+public class MeldTest {
+
     @Test
     public void test() {
         try {
-            String url = "http://github.com/harmanpa/jrecon/blob/master/jrecon/src/test/resources/samples/fullRobot.mld?raw=true";
-            String signal = "axis1.gear.bearingFriction.flange_a.phi";
-            MeldReader reader = new MeldReader(new HttpRandomAccessResource(new URI(url)));
-            ReconTable table = reader.findTableForSignal(signal);
-            Double[] t = table.getSignal("Time", Double.class);
-            Double[] x = table.getSignal(signal, Double.class);
-            System.out.println(x.length);
+            File f = new File(new File(System.getProperty("user.dir")), "src/test/resources/samples/test.wll");
+            File f2 = new File("target/test.mld");
+            if (f2.exists()) {
+                f2.delete();
+            }
+            f2.createNewFile();
+            Meld.wallToMeld(f, f2);
+            MeldReader reader = new MeldReader(new FileRandomAccessResource(f2));
+            for(ReconTable table : reader.getTables().values()) {
+                for(String signal : table.getSignals()) {
+                    System.out.println(table.getName() + ":" + signal + "(" + Integer.toString(table.getSignal(signal).length) + ")");
+                }
+            }
         } catch (ReconException ex) {
-            Logger.getLogger(MeldRemoteReadTest.class.getName()).log(Level.SEVERE, null, ex);
-            Assert.fail(ex.toString());
-        } catch (URISyntaxException ex) {
-            Logger.getLogger(MeldRemoteReadTest.class.getName()).log(Level.SEVERE, null, ex);
-            Assert.fail(ex.toString());
+            Assert.fail(ex.getMessage());
+        } catch (IOException ex) {
+            Assert.fail(ex.getMessage());
         }
     }
 }

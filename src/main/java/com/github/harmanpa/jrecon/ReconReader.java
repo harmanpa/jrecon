@@ -112,11 +112,11 @@ public abstract class ReconReader extends ReconFile implements Serializable {
             case ARRAY:
                 return arrayToObject(value.asArrayValue());
             case BOOLEAN:
-                return Boolean.valueOf(value.asBooleanValue().getBoolean());
+                return value.asBooleanValue().getBoolean();
             case FLOAT:
-                return Double.valueOf(value.asFloatValue().getDouble());
+                return value.asFloatValue().getDouble();
             case INTEGER:
-                return Integer.valueOf(value.asIntegerValue().getInt());
+                return value.asIntegerValue().getInt();
             case RAW:
                 return new String(value.asRawValue().getByteArray());
             case MAP:
@@ -127,26 +127,26 @@ public abstract class ReconReader extends ReconFile implements Serializable {
     }
 
     protected final Object arrayToObject(ArrayValue array) throws IOException {
-        if (array.size() == 0) {
+        if (array.isEmpty()) {
             return new Object[0];
         }
         switch (array.getElementArray()[0].getType()) {
             case BOOLEAN:
                 Boolean[] out = new Boolean[array.size()];
                 for (int i = 0; i < array.size(); i++) {
-                    out[i] = Boolean.valueOf(array.getElementArray()[i].asBooleanValue().getBoolean());
+                    out[i] = array.getElementArray()[i].asBooleanValue().getBoolean();
                 }
                 return out;
             case FLOAT:
                 Double[] out2 = new Double[array.size()];
                 for (int i = 0; i < array.size(); i++) {
-                    out2[i] = Double.valueOf(array.getElementArray()[i].asFloatValue().getDouble());
+                    out2[i] = array.getElementArray()[i].asFloatValue().getDouble();
                 }
                 return out2;
             case INTEGER:
                 Integer[] out3 = new Integer[array.size()];
                 for (int i = 0; i < array.size(); i++) {
-                    out3[i] = Integer.valueOf(array.getElementArray()[i].asIntegerValue().getInt());
+                    out3[i] = array.getElementArray()[i].asIntegerValue().getInt();
                 }
                 return out3;
             case RAW:
