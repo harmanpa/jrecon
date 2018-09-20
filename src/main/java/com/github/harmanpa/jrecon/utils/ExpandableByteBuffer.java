@@ -24,7 +24,6 @@
 package com.github.harmanpa.jrecon.utils;
 
 import com.github.harmanpa.jrecon.io.RandomAccessResource;
-import com.oracle.jrockit.jfr.ContentType;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
