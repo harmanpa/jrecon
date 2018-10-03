@@ -58,9 +58,7 @@ public class WallTest {
                     System.out.println(table.getName() + ": " + signal + "=" + table.getSignal(signal).length);
                 }
             }
-        } catch (ReconException ex) {
-            Assert.fail(ex.getMessage());
-        } catch (IOException ex) {
+        } catch (ReconException | IOException ex) {
             Assert.fail(ex.getMessage());
         }
     }
@@ -126,10 +124,7 @@ public class WallTest {
                 }
             }
 
-        } catch (ReconException ex) {
-            Logger.getLogger(WallTest.class.getName()).log(Level.SEVERE, null, ex);
-            Assert.fail();
-        } catch (IOException ex) {
+        } catch (ReconException | IOException ex) {
             Logger.getLogger(WallTest.class.getName()).log(Level.SEVERE, null, ex);
             Assert.fail();
         }

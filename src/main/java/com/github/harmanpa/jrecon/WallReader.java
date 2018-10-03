@@ -279,7 +279,7 @@ public class WallReader extends ReconReader {
             }
             String signal = getSignalName(index);
             try {
-                List<T> out = new ArrayList<T>(readRows().size());
+                List<T> out = new ArrayList<>(readRows().size());
                 String transform = getSignalTransform(signal);
                 for (Row row : readRows()) {
                     if (getName().equals(row.getName())) {

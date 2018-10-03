@@ -74,25 +74,27 @@ public class Transforms {
     }
 
     
+    @SuppressWarnings("UnnecessaryBoxing")
     private static <T> T inverse(T obj) throws ReconException {
         if (obj instanceof Double) {
-            return (T) Double.valueOf(-1.0 * ((Double) obj).doubleValue());
+            return (T) Double.valueOf(-1.0 * ((Double) obj));
         }
         if (obj instanceof Integer) {
-            return (T) Integer.valueOf(-1 * ((Integer) obj).intValue());
+            return (T) Integer.valueOf(-1 * ((Integer) obj));
         }
         if (obj instanceof Boolean) {
-            return (T) Boolean.valueOf(!((Boolean) obj).booleanValue());
+            return (T) Boolean.valueOf(!((Boolean) obj));
         }
         throw new ReconException("Cannot invert " + obj);
     }
 
+    @SuppressWarnings("UnnecessaryBoxing")
     private static <T> T affine(T obj, Number a, Number b) throws ReconException {
         if (obj instanceof Double) {
-            return (T) Double.valueOf(b.doubleValue() + a.doubleValue() * ((Double) obj).doubleValue());
+            return (T) Double.valueOf(b.doubleValue() + a.doubleValue() * ((Double) obj));
         }
         if (obj instanceof Integer) {
-            return (T) Integer.valueOf(b.intValue() + a.intValue() * ((Integer) obj).intValue());
+            return (T) Integer.valueOf(b.intValue() + a.intValue() * ((Integer) obj));
         }
         throw new ReconException("Cannot apply affine transform to " + obj);
     }

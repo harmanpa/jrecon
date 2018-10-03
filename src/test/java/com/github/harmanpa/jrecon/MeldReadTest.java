@@ -23,8 +23,10 @@
  */
 package com.github.harmanpa.jrecon;
 
+import com.github.harmanpa.jrecon.exceptions.ReconException;
 import com.github.harmanpa.jrecon.io.FileRandomAccessResource;
 import java.io.File;
+import java.io.FileNotFoundException;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -51,7 +53,7 @@ public class MeldReadTest {
                     System.out.println("\t" + field);
                 }
             }
-        } catch (Exception ex) {
+        } catch (ReconException | FileNotFoundException ex) {
             ex.printStackTrace();
             Assert.fail(ex.getMessage());
         }

@@ -44,6 +44,7 @@ public class MeldRemoteReadTest {
             String signal = "axis1.gear.bearingFriction.flange_a.phi";
             MeldReader reader = new MeldReader(new HttpRandomAccessResource(new URI(url)));
             ReconTable table = reader.findTableForSignal(signal);
+            @SuppressWarnings("MismatchedReadAndWriteOfArray")
             Double[] t = table.getSignal("Time", Double.class);
             Double[] x = table.getSignal(signal, Double.class);
             System.out.println(x.length);

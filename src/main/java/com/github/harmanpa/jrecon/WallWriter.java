@@ -161,12 +161,7 @@ public class WallWriter extends ReconWriter {
             checkNotFinalized();
             checkSignalExistence(of, true);
             checkSignalExistence(alias, false);
-            if (!Sets.filter(aliases, new Predicate<Alias>() {
-                @Override
-                public boolean apply(Alias t) {
-                    return t.getAlias().equals(alias);
-                }
-            }).isEmpty()) {
+            if (!Sets.filter(aliases, (Alias t) -> t.getAlias().equals(alias)).isEmpty()) {
                 throw new ReconException("Alias already exists");
             }
             Alias a = new Alias(alias, of, transform);
@@ -181,9 +176,9 @@ public class WallWriter extends ReconWriter {
         @Override
         public final String[] getVariables() {
             List<String> vars = Lists.newArrayList();
-            for (Alias alias : aliases) {
+            aliases.forEach((alias) -> {
                 vars.add(alias.getAlias());
-            }
+            });
             vars.addAll(signals);
             return vars.toArray(new String[0]);
         }

@@ -36,7 +36,6 @@ import java.util.Map;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 import org.msgpack.value.ArrayValue;
-import org.msgpack.value.ImmutableMapValue;
 import org.msgpack.value.ImmutableValue;
 import org.msgpack.value.MapValue;
 import org.msgpack.value.Value;
@@ -352,7 +351,7 @@ public abstract class ReconReader extends ReconFile implements Serializable {
 
         @Override
         public final Map<String, Object> getSignalMeta(String signal) {
-            return signalMeta.containsKey(signal) ? signalMeta.get(signal) : new HashMap<String, Object>();
+            return signalMeta.containsKey(signal) ? signalMeta.get(signal) : new HashMap<>();
         }
 
         @Override

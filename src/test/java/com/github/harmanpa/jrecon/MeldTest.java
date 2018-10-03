@@ -24,7 +24,6 @@
 package com.github.harmanpa.jrecon;
 
 import com.github.harmanpa.jrecon.exceptions.ReconException;
-import com.github.harmanpa.jrecon.io.FileRandomAccessResource;
 import java.io.File;
 import java.io.IOException;
 import org.junit.Assert;

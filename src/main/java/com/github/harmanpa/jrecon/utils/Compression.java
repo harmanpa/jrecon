@@ -39,20 +39,21 @@ public class Compression {
 
     public static byte[] compress(byte[] data) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream(128);
-        OutputStream os = new BZip2CompressorOutputStream(baos);
-        os.write(data);
-        os.close();
+        try (OutputStream os = new BZip2CompressorOutputStream(baos)) {
+            os.write(data);
+        }
         return baos.toByteArray();
     }
 
     public static byte[] decompress(byte[] data) throws IOException {
-        InputStream is = new BZip2CompressorInputStream(new ByteArrayInputStream(data));
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(128);
-        int b;
-        while ((b = is.read()) > -1) {
-            baos.write(b);
+        ByteArrayOutputStream baos;
+        try (InputStream is = new BZip2CompressorInputStream(new ByteArrayInputStream(data))) {
+            baos = new ByteArrayOutputStream(128);
+            int b;
+            while ((b = is.read()) > -1) {
+                baos.write(b);
+            }
         }
-        is.close();
         return baos.toByteArray();
     }
 }

@@ -37,13 +37,7 @@ public class CSVTest {
             File f = File.createTempFile("test", ".mld");
             // Create the wall object with a file object to write to
             MeldWriter meld = new MeldWriter(f);
-            Meld.csv2meld(parser, new Function<String, String>() {
-
-                @Override
-                public String apply(String f) {
-                    return f.substring(0, f.lastIndexOf('[')).trim();
-                }
-            }, Meld.defaultValueExtractor(), meld);
+            Meld.csv2meld(parser, (String f1) -> f1.substring(0, f1.lastIndexOf('[')).trim(), Meld.defaultValueExtractor(), meld);
 
             MeldReader reader = new MeldReader(new FileRandomAccessResource(f));
             for(ReconTable table : reader.getTables().values()) {
