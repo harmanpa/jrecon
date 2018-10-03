@@ -83,6 +83,6 @@ and
 	<dependency>
 	    <groupId>com.github.harmanpa</groupId>
 	    <artifactId>jrecon</artifactId>
-	    <version>v1.4.0</version>
+	    <version>v1.5.0</version>
 	</dependency>
 ```
