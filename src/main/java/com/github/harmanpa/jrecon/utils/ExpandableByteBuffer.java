@@ -306,7 +306,8 @@ public class ExpandableByteBuffer {
         if (buf.remaining() >= amount) {
             return;
         }
-        ByteBuffer buf2 = ByteBuffer.allocate(this.buf.capacity() + BUFFER_SIZE);
+        ByteBuffer buf2 = ByteBuffer.allocate(this.buf.position() + Math.max(BUFFER_SIZE, amount));
+        this.buf.flip();
         buf2.put(this.buf);
         this.buf = buf2;
     }

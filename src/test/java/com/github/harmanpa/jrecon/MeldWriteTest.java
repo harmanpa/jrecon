@@ -23,8 +23,10 @@
  */
 package com.github.harmanpa.jrecon;
 
+import com.github.harmanpa.jrecon.exceptions.ReconException;
 import com.github.harmanpa.jrecon.io.FileRandomAccessResource;
 import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.logging.Level;
@@ -42,36 +44,33 @@ public class MeldWriteTest {
     public void test1() {
         try {
             File f = File.createTempFile("test", ".mld");
-            // Create the wall object with a file object to write to
-            MeldWriter meld = new MeldWriter(f);
-
             //Melds can contain tables, here is how we define one
-            ReconTable t = meld.addTable("T1", new String[]{"time"});
+            try (MeldWriter meld = new MeldWriter(f)) {
+                //Melds can contain tables, here is how we define one
+                ReconTable t = meld.addTable("T1", new String[]{"time"});
 
-            // Melds can also have objects.
-            //ReconObject obj1 = meld.addObject("obj1");
-            //ReconObject obj2 = meld.addObject("obj2");
-
-            // Note, so far we have not specified the values of anything.
-            // Once we "define" the wall, we can't change the structure,
-            // but we can add rows to tables and fields to objects.
-
-            // Here we are adding fields to our object
+                // Melds can also have objects.
+                //ReconObject obj1 = meld.addObject("obj1");
+                //ReconObject obj2 = meld.addObject("obj2");
+                // Note, so far we have not specified the values of anything.
+                // Once we "define" the wall, we can't change the structure,
+                // but we can add rows to tables and fields to objects.
+                // Here we are adding fields to our object
 //            obj1.addField("name", "Mike");
 //            obj2.addField("name", "Pete");
 //
 //            // Adding more fields
 //            obj1.addField("nationality", "American");
 //            obj2.addField("nationality", "UKLander");
-            meld.finalizeDefinitions();
-            t.setSignal("time", 1.0, 2.0, 3.0);
+                meld.finalizeDefinitions();
+                t.setSignal("time", 1.0, 2.0, 3.0);
 //            t.setSignal("x", new double[]{1.0, 2.0, 3.0});
 //            t.setSignal("y", new double[]{1.0, 2.0, 3.0});
 
+                meld.flush();
+            }
 
-            meld.flush();
-
-            MeldReader reader = new MeldReader(new FileRandomAccessResource(f));
+            MeldReader reader = new MeldReader(f);
             for (ReconObject obj : reader.getObjects().values()) {
                 for (Map.Entry<String, Object> entry : obj.getFields().entrySet()) {
                     System.out.println(obj.getName() + "." + entry.getKey() + "=" + entry.getValue());
@@ -87,7 +86,7 @@ public class MeldWriteTest {
                 }
             }
 
-        } catch (Exception ex) {
+        } catch (ReconException | IOException ex) {
             Logger.getLogger(MeldWriteTest.class.getName()).log(Level.SEVERE, null, ex);
             Assert.fail();
         }

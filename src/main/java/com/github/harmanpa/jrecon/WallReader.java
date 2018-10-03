@@ -40,7 +40,11 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.msgpack.unpacker.Unpacker;
+import org.msgpack.core.MessagePack;
+import org.msgpack.core.MessageUnpacker;
+import org.msgpack.value.ArrayValue;
+import org.msgpack.value.MapValue;
+import org.msgpack.value.Value;
 
 /**
  *
@@ -83,66 +87,72 @@ public class WallReader extends ReconReader {
     }
 
     @Override
-    protected final ReconTable visitTable(String name, Unpacker unpacker) throws IOException {
-        Map<String, Object> tableMeta = new HashMap<String, Object>();
-        Map<String, Map<String, Object>> signalMeta = new HashMap<String, Map<String, Object>>();
-        List<String> signals = new ArrayList<String>();
-        List<Alias> aliases = new ArrayList<Alias>();
-        int mapLength = unpacker.readMapBegin();
+    protected final ReconTable visitTable(String name, MessageUnpacker unpacker) throws IOException {
+        Map<String, Object> tableMeta = new HashMap<>();
+        Map<String, Map<String, Object>> signalMeta = new HashMap<>();
+        List<String> signals = new ArrayList<>();
+        List<Alias> aliases = new ArrayList<>();
+        int mapLength = unpacker.unpackMapHeader();
         for (int i = 0; i < mapLength; i++) {
-            String entryName = unpacker.readString();
-            if ("tmeta".equals(entryName)) {
-                tableMeta.putAll(visitMetaMap(unpacker));
-            } else if ("sigs".equals(entryName)) {
-                int nSignals = unpacker.readArrayBegin();
-                for (int j = 0; j < nSignals; j++) {
-                    signals.add(unpacker.readString());
-                }
-                unpacker.readArrayEnd();
-            } else if ("als".equals(entryName)) {
-                int nAliases = unpacker.readMapBegin();
-                for (int j = 0; j < nAliases; j++) {
-                    String alias = unpacker.readString();
-                    String of = "";
-                    String transform = "";
-                    int nData = unpacker.readMapBegin();
-                    for (int k = 0; k < nData; k++) {
-                        String aliasData = unpacker.readString();
-                        if ("s".equals(aliasData)) {
-                            of = unpacker.readString();
-                        } else if ("t".equals(aliasData)) {
-                            transform = unpacker.readString();
-                        }
-                    }
-                    unpacker.readMapEnd();
-                    aliases.add(new Alias(alias, of, transform));
-                }
-                unpacker.readMapEnd();
-            } else if ("vmeta".equals(entryName)) {
-                int nSignals = unpacker.readMapBegin();
-                for (int j = 0; j < nSignals; j++) {
-                    String signal = unpacker.readString();
-                    Map<String, Object> map = visitMetaMap(unpacker);
-                    signalMeta.put(signal, map);
-                }
-                unpacker.readMapEnd();
-            } else {
+            String entryName = unpacker.unpackString();
+            if (null == entryName) {
                 throw new IOException("Unknown field " + entryName + " in defintion of table " + name);
+            } else {
+                switch (entryName) {
+                    case "tmeta":
+                        tableMeta.putAll(visitMetaMap(unpacker));
+                        break;
+                    case "sigs": {
+                        int nSignals = unpacker.unpackArrayHeader();
+                        for (int j = 0; j < nSignals; j++) {
+                            signals.add(unpacker.unpackString());
+                        }
+                        break;
+                    }
+                    case "als":
+                        int nAliases = unpacker.unpackMapHeader();
+                        for (int j = 0; j < nAliases; j++) {
+                            String alias = unpacker.unpackString();
+                            String of = "";
+                            String transform = "";
+                            int nData = unpacker.unpackMapHeader();
+                            for (int k = 0; k < nData; k++) {
+                                String aliasData = unpacker.unpackString();
+                                if ("s".equals(aliasData)) {
+                                    of = unpacker.unpackString();
+                                } else if ("t".equals(aliasData)) {
+                                    transform = unpacker.unpackString();
+                                }
+                            }
+                            aliases.add(new Alias(alias, of, transform));
+                        }
+                        break;
+                    case "vmeta": {
+                        int nSignals = unpacker.unpackMapHeader();
+                        for (int j = 0; j < nSignals; j++) {
+                            String signal = unpacker.unpackString();
+                            Map<String, Object> map = visitMetaMap(unpacker);
+                            signalMeta.put(signal, map);
+                        }
+                        break;
+                    }
+                    default:
+                        throw new IOException("Unknown field " + entryName + " in defintion of table " + name);
+                }
             }
         }
-        unpacker.readMapEnd();
         return new WallTableReader(name, signals.toArray(new String[0]), aliases.toArray(new Alias[0]), tableMeta, signalMeta);
     }
 
     @Override
-    protected final ReconObject visitObject(String name, Unpacker unpacker) throws IOException {
+    protected final ReconObject visitObject(String name, MessageUnpacker unpacker) throws IOException {
         Map<String, Object> objectMeta = visitMetaMap(unpacker);
         return new WallObjectReader(name, objectMeta);
     }
 
     private List<Row> readRows() throws ReconException, IOException {
         if (rows == null) {
-            rows = new ArrayList<Row>(1000);
+            rows = new ArrayList<>(1000);
             byte[] four = new byte[4];
             boolean complete = false;
             while (!complete) {
@@ -156,7 +166,7 @@ public class WallReader extends ReconReader {
                         if (size != this.stream.read(rowBytes)) {
                             throw new ReconException("Failed to read size of next row");
                         }
-                        rows.add(visitRow(getMessagePack().createBufferUnpacker(rowBytes)));
+                        rows.add(visitRow(MessagePack.newDefaultUnpacker(rowBytes)));
                         break;
                     default:
                         throw new ReconException("Failed to read size of next row");
@@ -166,36 +176,41 @@ public class WallReader extends ReconReader {
         return rows;
     }
 
-    private Row visitRow(Unpacker unpacker) throws IOException, ReconException {
+    private Row visitRow(MessageUnpacker unpacker) throws IOException, ReconException {
         Row row;
-        unpacker.readMapBegin();
-        String name = unpacker.readString();
-        switch (unpacker.getNextType()) {
+        unpacker.unpackMapHeader();
+        String name = unpacker.unpackString();
+        Value value = unpacker.unpackValue();
+        switch (value.getValueType()) {
             case ARRAY:
-                int n = unpacker.readArrayBegin();
+                ArrayValue arrayValue = value.asArrayValue();
+                int n = arrayValue.size();
                 Object[] rowData = new Object[n];
                 for (int i = 0; i < n; i++) {
-                    rowData[i] = readObject(unpacker);
+                    rowData[i] = valueToObject(arrayValue.get(i));
                 }
-                unpacker.readArrayEnd();
                 row = new Row(name, rowData);
                 break;
             case MAP:
-                int nM = unpacker.readMapBegin();
+                MapValue mapValue = value.asMapValue();
                 ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();
-                for (int i = 0; i < nM; i++) {
-                    String field = unpacker.readString();
-                    Object value = readObject(unpacker);
-                    builder.put(field, value);
+                for (Map.Entry<Value, Value> entry : mapValue.map().entrySet()) {
+                    String entryKey = entry.getKey().asStringValue().asString();
+                    Object entryValue = valueToObject(entry.getValue());
+                    builder.put(entryKey, entryValue);
                 }
-                unpacker.readMapEnd();
+                ;
                 row = new Row(name, builder.build());
                 break;
             default:
                 throw new ReconException("Unknown format of row");
         }
-        unpacker.readMapEnd();
         return row;
+    }
+
+    @Override
+    public void close() throws IOException {
+        stream.close();
     }
 
     class WallObjectReader extends ReconObjectReader {
@@ -206,7 +221,7 @@ public class WallReader extends ReconReader {
 
         @Override
         public Map<String, Object> getFields() throws ReconException {
-            Map<String, Object> out = new HashMap<String, Object>();
+            Map<String, Object> out = new HashMap<>();
             try {
                 for (Row row : readRows()) {
                     if (getName().equals(row.getName())) {
@@ -378,10 +393,7 @@ public class WallReader extends ReconReader {
             if (!Arrays.deepEquals(this.data, other.data)) {
                 return false;
             }
-            if (this.map != other.map && (this.map == null || !this.map.equals(other.map))) {
-                return false;
-            }
-            return true;
+            return !(this.map != other.map && (this.map == null || !this.map.equals(other.map)));
         }
     }
 }

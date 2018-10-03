@@ -53,9 +53,9 @@ public interface ReconTable extends Serializable {
     
     public void addSignal(String signal) throws ReconException;
 
-    public void addAlias(String var, String alias) throws ReconException;
+    public void addAlias(String alias, String of) throws ReconException;
 
-    public void addAlias(String var, String alias, String transform) throws ReconException;
+    public void addAlias(String alias, String of, String transform) throws ReconException;
     
     public void setSignal(String signal, Object... data) throws ReconException;
     

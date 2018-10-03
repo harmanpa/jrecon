@@ -23,6 +23,7 @@
  */
 package com.github.harmanpa.jrecon.io;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
 
@@ -30,11 +31,12 @@ import java.io.Serializable;
  *
  * @author pete
  */
-public interface RandomAccessResource extends Serializable {
-    
+public interface RandomAccessResource extends Serializable, Closeable {
+
     /**
      * Returns true if resource is writable
-     * @return 
+     *
+     * @return
      */
     public boolean canWrite();
 

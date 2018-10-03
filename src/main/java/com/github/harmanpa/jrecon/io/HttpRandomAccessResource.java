@@ -67,4 +67,8 @@ public class HttpRandomAccessResource implements RandomAccessResource {
         throw new UnsupportedOperationException("Write not supported");
     }
 
+    @Override
+    public void close() throws IOException {
+    }
+
 }

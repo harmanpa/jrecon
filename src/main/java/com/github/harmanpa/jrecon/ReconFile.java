@@ -24,25 +24,16 @@
 package com.github.harmanpa.jrecon;
 
 import com.github.harmanpa.jrecon.exceptions.ReconException;
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Map.Entry;
-import org.msgpack.MessagePack;
 
 /**
  *
  * @author pete
  */
-public abstract class ReconFile {
-
-    private transient MessagePack mp;
-
-    protected MessagePack getMessagePack() {
-        if (mp == null) {
-            mp = new MessagePack();
-        }
-        return mp;
-    }
+public abstract class ReconFile implements Closeable {
 
     public abstract ReconTable addTable(String name, String... signals) throws ReconException;
 
@@ -57,6 +48,10 @@ public abstract class ReconFile {
     public abstract Map<String, Object> getFileMeta() throws ReconException;
 
     public abstract void flush() throws IOException;
+
+    @Override
+    public void close() throws IOException {
+    }
 
     public abstract boolean isDefined();
 

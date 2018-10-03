@@ -59,4 +59,9 @@ public class FileRandomAccessResource implements RandomAccessResource {
         this.file.write(bytes);
     }
 
+    @Override
+    public void close() throws IOException {
+        this.file.close();
+    }
+
 }

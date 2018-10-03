@@ -63,63 +63,56 @@ public class WallWriter extends ReconWriter {
     @Override
     public final void finalizeDefinitions() throws IOException {
         if (!defined) {
-            bufferPacker.writeMapBegin(3);
+            bufferPacker.packMapHeader(3);
             // Write file meta
-            bufferPacker.write("fmeta");
-            bufferPacker.write(getFileMeta());
+            bufferPacker.packString("fmeta");
+            packMeta(bufferPacker, getFileMeta());
             // Write table definitions
-            bufferPacker.write("tabs");
-            bufferPacker.writeMapBegin(getTables().size());
+            bufferPacker.packString("tabs");
+            bufferPacker.packMapHeader(getTables().size());
             for (ReconTable table : getTables().values()) {
-                bufferPacker.write(table.getName());
-                bufferPacker.writeMapBegin(4);
-                bufferPacker.write("tmeta");
-                bufferPacker.write(table.getTableMeta());
-                bufferPacker.write("sigs");
-                bufferPacker.writeArrayBegin(table.getSignals().length);
+                bufferPacker.packString(table.getName());
+                bufferPacker.packMapHeader(4);
+                bufferPacker.packString("tmeta");
+                packMeta(bufferPacker, table.getTableMeta());
+                bufferPacker.packString("sigs");
+                bufferPacker.packArrayHeader(table.getSignals().length);
                 for (String signal : table.getSignals()) {
-                    bufferPacker.write(signal);
+                    bufferPacker.packString(signal);
                 }
-                bufferPacker.writeArrayEnd();
-                bufferPacker.write("als");
-                bufferPacker.writeMapBegin(table.getAliases().length);
+                bufferPacker.packString("als");
+                bufferPacker.packMapHeader(table.getAliases().length);
                 for (Alias alias : table.getAliases()) {
-                    bufferPacker.write(alias.getAlias());
-                    bufferPacker.writeMapBegin(alias.getTransform().isEmpty() ? 1 : 2);
-                    bufferPacker.write("s");
-                    bufferPacker.write(alias.getOf());
+                    bufferPacker.packString(alias.getAlias());
+                    bufferPacker.packMapHeader(alias.getTransform().isEmpty() ? 1 : 2);
+                    bufferPacker.packString("s");
+                    bufferPacker.packString(alias.getOf());
                     if (!alias.getTransform().isEmpty()) {
-                        bufferPacker.write("t");
-                        bufferPacker.write(alias.getTransform());
+                        bufferPacker.packString("t");
+                        bufferPacker.packString(alias.getTransform());
                     }
-                    bufferPacker.writeMapEnd();
                 }
-                bufferPacker.writeMapEnd();
-                bufferPacker.write("vmeta");
-                bufferPacker.writeMapBegin(table.getSignals().length);
+                bufferPacker.packString("vmeta");
+                bufferPacker.packMapHeader(table.getSignals().length);
                 for (String s : table.getSignals()) {
-                    bufferPacker.write(s);
-                    bufferPacker.write(table.getSignalMeta(s));
+                    bufferPacker.packString(s);
+                    packMeta(bufferPacker, table.getSignalMeta(s));
                 }
-                bufferPacker.writeMapEnd();
-                bufferPacker.writeMapEnd();
             }
-            bufferPacker.writeMapEnd();
             // Write object definitions
-            bufferPacker.write("objs");
-            bufferPacker.writeMapBegin(getObjects().size());
+            bufferPacker.packString("objs");
+            bufferPacker.packMapHeader(getObjects().size());
             for (ReconObject object : getObjects().values()) {
-                bufferPacker.write(object.getName());
-                bufferPacker.write(object.getObjectMeta());
+                bufferPacker.packString(object.getName());
+                packMeta(bufferPacker, object.getObjectMeta());
             }
-            bufferPacker.writeMapEnd();
-            bufferPacker.writeMapEnd();
-            int variableHeaderSize = bufferPacker.getBufferSize();
+            byte[] bytes = bufferPacker.toByteArray();
+            int variableHeaderSize = bytes.length;
             // Buffer fixed header
             buffer.put(WALL_ID.getBytes());
             buffer.putInteger(variableHeaderSize);
             // Buffer variable header
-            buffer.put(bufferPacker.toByteArray());
+            buffer.put(bytes);
             bufferPacker.clear();
             defined = true;
         }
@@ -151,16 +144,12 @@ public class WallWriter extends ReconWriter {
                 throw new ReconException("Number of data elements must match number of signals");
             }
             try {
-                bufferPacker.writeMapBegin(1);
-                bufferPacker.write(getName());
-                bufferPacker.writeArrayBegin(data.length);
-                for (Object obj : data) {
-                    bufferPacker.write(obj);
-                }
-                bufferPacker.writeArrayEnd();
-                bufferPacker.writeMapEnd();
-                buffer.putInteger(bufferPacker.getBufferSize());
-                buffer.put(bufferPacker.toByteArray());
+                bufferPacker.packMapHeader(1);
+                bufferPacker.packString(getName());
+                bufferPacker.packValue(objectToValue(data));
+                byte[] bytes = bufferPacker.toByteArray();
+                buffer.putInteger(bytes.length);
+                buffer.put(bytes);
                 bufferPacker.clear();
             } catch (IOException ex) {
                 throw new ReconException("Error writing new row", ex);
@@ -218,15 +207,14 @@ public class WallWriter extends ReconWriter {
         public final void addField(String name, Object value) throws ReconException {
             checkFinalized();
             try {
-                bufferPacker.writeMapBegin(1);
-                bufferPacker.write(getName());
-                bufferPacker.writeMapBegin(1);
-                bufferPacker.write(name);
-                bufferPacker.write(value);
-                bufferPacker.writeMapEnd();
-                bufferPacker.writeMapEnd();
-                buffer.putInteger(bufferPacker.getBufferSize());
-                buffer.put(bufferPacker.toByteArray());
+                bufferPacker.packMapHeader(1);
+                bufferPacker.packString(getName());
+                bufferPacker.packMapHeader(1);
+                bufferPacker.packString(name);
+                bufferPacker.packValue(objectToValue(value));
+                byte[] bytes = bufferPacker.toByteArray();
+                buffer.putInteger(bytes.length);
+                buffer.put(bytes);
                 bufferPacker.clear();
             } catch (IOException ex) {
                 throw new ReconException("Error writing new field", ex);

@@ -24,17 +24,20 @@
 package com.github.harmanpa.jrecon;
 
 import com.github.harmanpa.jrecon.exceptions.ReconException;
+import com.github.harmanpa.jrecon.io.FileRandomAccessResource;
 import com.github.harmanpa.jrecon.io.RandomAccessResource;
 import com.github.harmanpa.jrecon.utils.Compression;
 import com.github.harmanpa.jrecon.utils.Transforms;
 import com.google.common.collect.ObjectArrays;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.msgpack.unpacker.BufferUnpacker;
-import org.msgpack.unpacker.Unpacker;
+import org.msgpack.core.MessagePack;
+import org.msgpack.core.MessageUnpacker;
 
 /**
  *
@@ -44,6 +47,10 @@ public class MeldReader extends ReconReader {
 
     private final RandomAccessResource resource;
 
+    public MeldReader(File file) throws FileNotFoundException {
+        this(new FileRandomAccessResource(file));
+    }
+    
     public MeldReader(RandomAccessResource resource) {
         this.resource = resource;
     }
@@ -76,83 +83,97 @@ public class MeldReader extends ReconReader {
     }
 
     @Override
-    protected final ReconTable visitTable(String name, Unpacker unpacker) throws IOException {
-        Map<String, Object> tableMeta = new HashMap<String, Object>();
-        Map<String, Map<String, Object>> signalMeta = new HashMap<String, Map<String, Object>>();
-        List<String> signals = new ArrayList<String>();
-        Map<String, OffsetLength> offsets = new HashMap<String, OffsetLength>();
-        Map<String, String> transforms = new HashMap<String, String>();
-        int mapLength = unpacker.readMapBegin();
+    protected final ReconTable visitTable(String name, MessageUnpacker unpacker) throws IOException {
+        Map<String, Object> tableMeta = new HashMap<>();
+        Map<String, Map<String, Object>> signalMeta = new HashMap<>();
+        List<String> signals = new ArrayList<>();
+        Map<String, OffsetLength> offsets = new HashMap<>();
+        Map<String, String> transforms = new HashMap<>();
+        int mapLength = unpacker.unpackMapHeader();
         for (int i = 0; i < mapLength; i++) {
-            String entryName = unpacker.readString();
-            if ("tmeta".equals(entryName)) {
-                tableMeta.putAll(visitMetaMap(unpacker));
-            } else if ("vars".equals(entryName)) {
-                int nSignals = unpacker.readArrayBegin();
-                for (int j = 0; j < nSignals; j++) {
-                    signals.add(unpacker.readString());
-                }
-                unpacker.readArrayEnd();
-            } else if ("toff".equals(entryName)) {
-                int nVariables = unpacker.readMapBegin();
-                for (int j = 0; j < nVariables; j++) {
-                    String variable = unpacker.readString();
-                    int index = 0;
-                    int length = 0;
-                    String transform = "";
-                    int nData = unpacker.readMapBegin();
-                    for (int k = 0; k < nData; k++) {
-                        String variableData = unpacker.readString();
-                        if ("i".equals(variableData)) {
-                            index = unpacker.readInt();
-                        } else if ("l".equals(variableData)) {
-                            length = unpacker.readInt();
-                        } else if ("t".equals(variableData)) {
-                            transform = unpacker.readString();
-                        }
-                    }
-                    unpacker.readMapEnd();
-                    offsets.put(variable, new OffsetLength(index, length));
-                    transforms.put(variable, transform);
-                }
-                unpacker.readMapEnd();
-            } else if ("vmeta".equals(entryName)) {
-                int nSignals = unpacker.readMapBegin();
-                for (int j = 0; j < nSignals; j++) {
-                    String signal = unpacker.readString();
-                    Map<String, Object> map = visitMetaMap(unpacker);
-                    signalMeta.put(signal, map);
-                }
-                unpacker.readMapEnd();
-            } else {
+            String entryName = unpacker.unpackString();
+            if (null == entryName) {
                 throw new IOException("Unknown field " + entryName + " in defintion of table " + name);
+            } else switch (entryName) {
+                case "tmeta":
+                    tableMeta.putAll(visitMetaMap(unpacker));
+                    break;
+                case "vars":
+                    {
+                        int nSignals = unpacker.unpackArrayHeader();
+                        for (int j = 0; j < nSignals; j++) {
+                            signals.add(unpacker.unpackString());
+                        }       break;
+                    }
+                case "toff":
+                    int nVariables = unpacker.unpackMapHeader();
+                    for (int j = 0; j < nVariables; j++) {
+                        String variable = unpacker.unpackString();
+                        int index = 0;
+                        int length = 0;
+                        String transform = "";
+                        int nData = unpacker.unpackMapHeader();
+                        for (int k = 0; k < nData; k++) {
+                            String variableData = unpacker.unpackString();
+                            if (null != variableData) switch (variableData) {
+                                case "i":
+                                    index = unpacker.unpackInt();
+                                    break;
+                                case "l":
+                                    length = unpacker.unpackInt();
+                                    break;
+                                case "t":
+                                    transform = unpacker.unpackString();
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                        offsets.put(variable, new OffsetLength(index, length));
+                        transforms.put(variable, transform);
+                    }   break;
+                case "vmeta":
+                    {
+                        int nSignals = unpacker.unpackMapHeader();
+                        for (int j = 0; j < nSignals; j++) {
+                            String signal = unpacker.unpackString();
+                            Map<String, Object> map = visitMetaMap(unpacker);
+                            signalMeta.put(signal, map);
+                        }       break;
+                    }
+                default:
+                    throw new IOException("Unknown field " + entryName + " in defintion of table " + name);
             }
         }
-        unpacker.readMapEnd();
         return new MeldTableReader(name, signals.toArray(new String[0]), offsets, transforms, tableMeta, signalMeta);
     }
 
     @Override
-    protected final ReconObject visitObject(String name, Unpacker unpacker) throws IOException {
+    protected final ReconObject visitObject(String name, MessageUnpacker unpacker) throws IOException {
         Map<String, Object> objectMeta = null;
         int index = 0;
         int length = 0;
-        int mapLength = unpacker.readMapBegin();
+        int mapLength = unpacker.unpackMapHeader();
         for (int i = 0; i < mapLength; i++) {
-            String entryName = unpacker.readString();
-            if ("ometa".equals(entryName)) {
-                objectMeta = visitMetaMap(unpacker);
-            } else if ("i".equals(entryName)) {
-                index = unpacker.readInt();
-            } else if ("l".equals(entryName)) {
-                length = unpacker.readInt();
-            } else {
+            String entryName = unpacker.unpackString();
+            if (null == entryName) {
                 throw new IOException("Unknown field " + entryName + " in defintion of table " + name);
+            } else switch (entryName) {
+                case "ometa":
+                    objectMeta = visitMetaMap(unpacker);
+                    break;
+                case "i":
+                    index = unpacker.unpackInt();
+                    break;
+                case "l":
+                    length = unpacker.unpackInt();
+                    break;
+                default:
+                    throw new IOException("Unknown field " + entryName + " in defintion of table " + name);
             }
         }
-        unpacker.readMapEnd();
         OffsetLength offsetLength = new OffsetLength(index, length);
-        return new MeldObjectReader(name, objectMeta == null ? new HashMap<String, Object>() : objectMeta, offsetLength);
+        return new MeldObjectReader(name, objectMeta == null ? new HashMap<>() : objectMeta, offsetLength);
     }
 
     protected <T> T[] readSignal(Class<T> t, OffsetLength offsetLength) throws ReconException {
@@ -165,14 +186,14 @@ public class MeldReader extends ReconReader {
                 if (isCompressed()) {
                     bytes = Compression.decompress(bytes);
                 }
-                BufferUnpacker unpacker = getMessagePack().createBufferUnpacker(bytes);
-                int arrayLength = unpacker.readArrayBegin();
-                T[] out = ObjectArrays.newArray(t, arrayLength);
-                for (int i = 0; i < arrayLength; i++) {
-                    out[i] = (T) readObject(unpacker);
+                T[] out;
+                try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bytes)) {
+                    int arrayLength = unpacker.unpackArrayHeader();
+                    out = ObjectArrays.newArray(t, arrayLength);
+                    for (int i = 0; i < arrayLength; i++) {
+                        out[i] = (T) readObject(unpacker);
+                    }
                 }
-                unpacker.readArrayEnd();
-                unpacker.close();
                 return out;
             }
             throw new ReconException("Failed to read signal at location");
@@ -188,15 +209,21 @@ public class MeldReader extends ReconReader {
                 if (isCompressed()) {
                     bytes = Compression.decompress(bytes);
                 }
-                BufferUnpacker unpacker = getMessagePack().createBufferUnpacker(bytes);
-                Map<String, Object> out = visitMetaMap(unpacker);
-                unpacker.close();
+                Map<String, Object> out;
+                try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bytes)) {
+                    out = visitMetaMap(unpacker);
+                }
                 return out;
             }
             throw new ReconException("Failed to read object at location");
         } catch (IOException ex) {
             throw new ReconException("Failed to read object", ex);
         }
+    }
+
+    @Override
+    public void close() throws IOException {
+        resource.close();
     }
 
     class MeldTableReader extends ReconTableReader {

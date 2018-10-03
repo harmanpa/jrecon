@@ -33,11 +33,18 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import org.msgpack.type.ArrayValue;
-import org.msgpack.type.MapValue;
-import org.msgpack.type.Value;
-import org.msgpack.unpacker.BufferUnpacker;
-import org.msgpack.unpacker.Unpacker;
+import org.msgpack.core.MessagePack;
+import org.msgpack.core.MessageUnpacker;
+import org.msgpack.value.ArrayValue;
+import org.msgpack.value.ImmutableMapValue;
+import org.msgpack.value.ImmutableValue;
+import org.msgpack.value.MapValue;
+import org.msgpack.value.Value;
+import static org.msgpack.value.ValueType.ARRAY;
+import static org.msgpack.value.ValueType.BOOLEAN;
+import static org.msgpack.value.ValueType.FLOAT;
+import static org.msgpack.value.ValueType.INTEGER;
+import static org.msgpack.value.ValueType.MAP;
 
 /**
  *
@@ -69,28 +76,34 @@ public abstract class ReconReader extends ReconFile implements Serializable {
         if (!headerRead) {
             int variableHeaderSize = readFixedHeader();
             byte[] variableHeaderBytes = readVariableHeaderBytes(variableHeaderSize);
-            BufferUnpacker unpacker = getMessagePack().createBufferUnpacker(variableHeaderBytes);
-            visitHeader(unpacker);
-            unpacker.close();
+            try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(variableHeaderBytes)) {
+                visitHeader(unpacker);
+            }
             headerRead = true;
         }
     }
 
-    protected final void visitHeader(Unpacker unpacker) throws IOException {
-        int mapLength = unpacker.readMapBegin();
+    protected final void visitHeader(MessageUnpacker unpacker) throws IOException {
+        int mapLength = unpacker.unpackMapHeader();
         for (int i = 0; i < mapLength; i++) {
-            String name = unpacker.readString();
-            if ("fmeta".equals(name)) {
-                this.meta = visitMetaMap(unpacker);
-            } else if ("tabs".equals(name)) {
-                this.tables = visitTableMap(unpacker);
-            } else if ("objs".equals(name)) {
-                this.objects = visitObjectMap(unpacker);
-            } else if ("comp".equals(name)) {
-                this.comp = unpacker.readBoolean();
+            String name = unpacker.unpackString();
+            if (null != name) switch (name) {
+                case "fmeta":
+                    this.meta = visitMetaMap(unpacker);
+                    break;
+                case "tabs":
+                    this.tables = visitTableMap(unpacker);
+                    break;
+                case "objs":
+                    this.objects = visitObjectMap(unpacker);
+                    break;
+                case "comp":
+                    this.comp = unpacker.unpackBoolean();
+                    break;
+                default:
+                    break;
             }
         }
-        unpacker.readMapEnd();
         if (this.meta == null) {
             this.meta = ImmutableMap.of();
         }
@@ -102,69 +115,63 @@ public abstract class ReconReader extends ReconFile implements Serializable {
         }
     }
 
-    protected final Object readObject(Unpacker unpacker) throws IOException {
-        Value value = unpacker.readValue();
+    protected final Object readObject(MessageUnpacker unpacker) throws IOException {
+        ImmutableValue value = unpacker.unpackValue();
         return valueToObject(value);
     }
 
     protected final Object valueToObject(Value value) throws IOException {
-        switch (value.getType()) {
+        switch (value.getValueType()) {
             case ARRAY:
                 return arrayToObject(value.asArrayValue());
             case BOOLEAN:
                 return value.asBooleanValue().getBoolean();
             case FLOAT:
-                return value.asFloatValue().getDouble();
+                return value.asFloatValue().toDouble();
             case INTEGER:
-                return value.asIntegerValue().getInt();
-            case RAW:
-                return new String(value.asRawValue().getByteArray());
+                return value.asIntegerValue().asInt();
             case MAP:
                 return mapToObject(value.asMapValue());
+            case STRING:
+                return value.asStringValue().asString();
             default:
                 return null;
         }
     }
 
     protected final Object arrayToObject(ArrayValue array) throws IOException {
-        if (array.isEmpty()) {
+        if (array.size()==0) {
             return new Object[0];
         }
-        switch (array.getElementArray()[0].getType()) {
+        switch (array.getValueType()) {
             case BOOLEAN:
                 Boolean[] out = new Boolean[array.size()];
                 for (int i = 0; i < array.size(); i++) {
-                    out[i] = array.getElementArray()[i].asBooleanValue().getBoolean();
+                    out[i] = array.get(i).asBooleanValue().getBoolean();
                 }
                 return out;
             case FLOAT:
                 Double[] out2 = new Double[array.size()];
                 for (int i = 0; i < array.size(); i++) {
-                    out2[i] = array.getElementArray()[i].asFloatValue().getDouble();
+                    out2[i] = array.get(i).asFloatValue().toDouble();
                 }
                 return out2;
             case INTEGER:
                 Integer[] out3 = new Integer[array.size()];
                 for (int i = 0; i < array.size(); i++) {
-                    out3[i] = array.getElementArray()[i].asIntegerValue().getInt();
+                    out3[i] = array.get(i).asIntegerValue().asInt();
                 }
                 return out3;
-            case RAW:
-                String[] out4 = new String[array.size()];
-                for (int i = 0; i < array.size(); i++) {
-                    out4[i] = String.valueOf(array.getElementArray()[i].asRawValue().getString());
-                }
-                return out4;
             case ARRAY:
                 Object[] out5 = new Object[array.size()];
                 for (int i = 0; i < array.size(); i++) {
-                    out5[i] = arrayToObject(array.getElementArray()[i].asArrayValue());
+                    out5[i] = arrayToObject(array.get(i).asArrayValue());
                 }
                 return out5;
             case MAP:
                 Object[] out6 = new Object[array.size()];
                 for (int i = 0; i < array.size(); i++) {
-                    out6[i] = mapToObject(array.getElementArray()[i].asMapValue());
+                    out6[i] = mapToObject(array.get(i).asMapValue());
                 }
                 return out6;
             default:
@@ -184,45 +191,42 @@ public abstract class ReconReader extends ReconFile implements Serializable {
         return builder.build();
     }
 
-    protected final Map<String, Object> visitMetaMap(Unpacker unpacker) throws IOException {
-        int mapLength = unpacker.readMapBegin();
+    protected final Map<String, Object> visitMetaMap(MessageUnpacker unpacker) throws IOException {
+        int mapLength = unpacker.unpackMapHeader();
         ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();
         for (int i = 0; i < mapLength; i++) {
-            String name = unpacker.readString();
+            String name = unpacker.unpackString();
             Object value = readObject(unpacker);
             builder.put(name, value);
         }
-        unpacker.readMapEnd();
         return builder.build();
     }
 
-    protected final Map<String, ReconTable> visitTableMap(Unpacker unpacker) throws IOException {
-        int mapLength = unpacker.readMapBegin();
+    protected final Map<String, ReconTable> visitTableMap(MessageUnpacker unpacker) throws IOException {
+        int mapLength = unpacker.unpackMapHeader();
         ImmutableMap.Builder<String, ReconTable> builder = ImmutableMap.builder();
         for (int i = 0; i < mapLength; i++) {
-            String name = unpacker.readString();
+            String name = unpacker.unpackString();
             ReconTable table = visitTable(name, unpacker);
             builder.put(name, table);
         }
-        unpacker.readMapEnd();
         return builder.build();
     }
 
-    protected abstract ReconTable visitTable(String name, Unpacker unpacker) throws IOException;
+    protected abstract ReconTable visitTable(String name, MessageUnpacker unpacker) throws IOException;
 
-    protected final Map<String, ReconObject> visitObjectMap(Unpacker unpacker) throws IOException {
-        int mapLength = unpacker.readMapBegin();
+    protected final Map<String, ReconObject> visitObjectMap(MessageUnpacker unpacker) throws IOException {
+        int mapLength = unpacker.unpackMapHeader();
         ImmutableMap.Builder<String, ReconObject> builder = ImmutableMap.builder();
         for (int i = 0; i < mapLength; i++) {
-            String name = unpacker.readString();
+            String name = unpacker.unpackString();
             ReconObject object = visitObject(name, unpacker);
             builder.put(name, object);
         }
-        unpacker.readMapEnd();
         return builder.build();
     }
 
-    protected abstract ReconObject visitObject(String name, Unpacker unpacker) throws IOException;
+    protected abstract ReconObject visitObject(String name, MessageUnpacker unpacker) throws IOException;
 
     @Override
     public final ReconTable addTable(String name, String... signals) throws ReconException {

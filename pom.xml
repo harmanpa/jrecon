@@ -4,7 +4,7 @@
 
     <groupId>com.github.harmanpa</groupId>
     <artifactId>jrecon</artifactId>
-    <version>1.4.0</version>
+    <version>1.5.0</version>
     <packaging>jar</packaging>
 
     <name>jrecon</name>
@@ -51,8 +51,8 @@
         </dependency>
         <dependency>
             <groupId>org.msgpack</groupId>
-            <artifactId>msgpack</artifactId>
-            <version>0.6.12</version>
+            <artifactId>msgpack-core</artifactId>
+            <version>0.8.16</version>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>

@@ -51,9 +51,7 @@ public class Meld {
         if (args.length == 2) {
             try {
                 wallToMeld(new File(args[0]), new File(args[1]));
-            } catch (IOException ex) {
-                Logger.getLogger(Meld.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (ReconException ex) {
+            } catch (IOException | ReconException ex) {
                 Logger.getLogger(Meld.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
@@ -111,6 +109,7 @@ public class Meld {
         }
         // Write
         writer.close();
+        reader.close();
     }
 
     public static void csv2wall(CSVParser reader, Function<String, String> headerExtractor, Function<String, Object> valueExtractor, WallWriter writer) throws ReconException, IOException {
@@ -130,11 +129,10 @@ public class Meld {
         writer.flush();
         List<CSVRecord> rows = reader.getRecords();
         for (String column : reader.getHeaderMap().keySet()) {
-            List<Object> values = new ArrayList<Object>(rows.size());
-            for (CSVRecord row : rows) {
-                String entry = row.get(column);
+            List<Object> values = new ArrayList<>(rows.size());
+            rows.stream().map((row) -> row.get(column)).forEachOrdered((entry) -> {
                 values.add(valueExtractor.apply(entry));
-            }
+            });
             table.setSignal(headerExtractor.apply(column), values.toArray());
             writer.flush();
         }
@@ -146,12 +144,6 @@ public class Meld {
     }
 
     public static Function<String, Object> defaultValueExtractor() {
-        return new Function<String, Object>() {
-
-            @Override
-            public Object apply(String f) {
-                return Double.valueOf(f);
-            }
-        };
+        return (String f) -> Double.valueOf(f);
     }
 }

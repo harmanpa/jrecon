@@ -46,15 +46,13 @@ public class MeldTest {
             }
             f2.createNewFile();
             Meld.wallToMeld(f, f2);
-            MeldReader reader = new MeldReader(new FileRandomAccessResource(f2));
+            MeldReader reader = new MeldReader(f2);
             for(ReconTable table : reader.getTables().values()) {
                 for(String signal : table.getSignals()) {
                     System.out.println(table.getName() + ":" + signal + "(" + Integer.toString(table.getSignal(signal).length) + ")");
                 }
             }
-        } catch (ReconException ex) {
-            Assert.fail(ex.getMessage());
-        } catch (IOException ex) {
+        } catch (ReconException | IOException ex) {
             Assert.fail(ex.getMessage());
         }
     }

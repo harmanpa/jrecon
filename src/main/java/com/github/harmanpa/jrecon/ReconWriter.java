@@ -28,21 +28,30 @@ import com.github.harmanpa.jrecon.exceptions.NotFinalizedException;
 import com.github.harmanpa.jrecon.exceptions.ReconException;
 import com.github.harmanpa.jrecon.exceptions.WriteOnlyException;
 import com.github.harmanpa.jrecon.utils.ExpandableByteBuffer;
+import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Array;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.msgpack.MessagePack;
-import org.msgpack.packer.BufferPacker;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.msgpack.core.MessageBufferPacker;
+import org.msgpack.core.MessagePack;
+import org.msgpack.value.Value;
+import org.msgpack.value.ValueFactory;
 
 /**
  *
@@ -56,7 +65,7 @@ public abstract class ReconWriter extends ReconFile {
     private final Map<String, ReconObject> objects;
     private final Map<String, Object> meta;
     protected final ExpandableByteBuffer buffer;
-    protected final BufferPacker bufferPacker;    
+    protected final MessageBufferPacker bufferPacker;
 
     public ReconWriter(File file) {
         this.file = file;
@@ -65,7 +74,7 @@ public abstract class ReconWriter extends ReconFile {
         this.objects = Maps.newHashMap();
         this.meta = Maps.newHashMap();
         this.buffer = new ExpandableByteBuffer(ByteBuffer.allocate(8 * 1024 * 1024).order(ByteOrder.BIG_ENDIAN));
-        this.bufferPacker = new MessagePack().createBufferPacker();
+        this.bufferPacker = MessagePack.newDefaultBufferPacker();
     }
 
     /**
@@ -109,7 +118,7 @@ public abstract class ReconWriter extends ReconFile {
             throw new NotFinalizedException();
         }
     }
-    
+
     /**
      * This adds a new table to the wall. If the wall has been finalized, this
      * will generated a FinalizedWall exception. If the name is already used by
@@ -171,8 +180,9 @@ public abstract class ReconWriter extends ReconFile {
     public final Map<String, ReconObject> getObjects() {
         return ImmutableMap.copyOf(objects);
     }
+
     protected abstract ReconTable createTable(String name, Iterable<String> signals);
-    
+
     protected abstract ReconObject createObject(String name);
 
     /**
@@ -181,35 +191,102 @@ public abstract class ReconWriter extends ReconFile {
      * @throws IOException
      */
     @Override
-    public void flush() throws IOException {        
-        FileChannel channel = new FileOutputStream(file, defined).getChannel();
-        buffer.writeToChannel(channel);
-        channel.close();
+    public void flush() throws IOException {
+        try (FileChannel channel = new FileOutputStream(file, defined).getChannel()) {
+            buffer.writeToChannel(channel);
+        }
     }
-    
+
+    @Override
     public void close() throws IOException {
         flush();
     }
-    
+
+    protected void packMeta(MessageBufferPacker packer, Map<String, Object> meta) throws IOException {
+        packer.packMapHeader(meta.size());
+        for (Map.Entry<String, Object> entry : meta.entrySet()) {
+            packer.packString(entry.getKey());
+            packer.packValue(objectToValue(entry.getValue()));
+        }
+    }
+
+    static final Map<Class<?>, Function<Object, Value>> VALUECONVERTERS = Maps.newHashMap();
+
+    static {
+        VALUECONVERTERS.put(double.class, (v) -> ValueFactory.newFloat((double) v));
+        VALUECONVERTERS.put(float.class, (v) -> ValueFactory.newFloat((float) v));
+        VALUECONVERTERS.put(int.class, (v) -> ValueFactory.newInteger((int) v));
+        VALUECONVERTERS.put(long.class, (v) -> ValueFactory.newInteger((long) v));
+        VALUECONVERTERS.put(short.class, (v) -> ValueFactory.newInteger((short) v));
+        VALUECONVERTERS.put(byte.class, (v) -> ValueFactory.newInteger((byte) v));
+        VALUECONVERTERS.put(Double.class, (v) -> ValueFactory.newFloat((Double) v));
+        VALUECONVERTERS.put(Float.class, (v) -> ValueFactory.newFloat((Float) v));
+        VALUECONVERTERS.put(Integer.class, (v) -> ValueFactory.newInteger((Integer) v));
+        VALUECONVERTERS.put(Long.class, (v) -> ValueFactory.newInteger((Long) v));
+        VALUECONVERTERS.put(Short.class, (v) -> ValueFactory.newInteger((Short) v));
+        VALUECONVERTERS.put(Byte.class, (v) -> ValueFactory.newInteger((Byte) v));
+        VALUECONVERTERS.put(BigInteger.class, (v) -> ValueFactory.newInteger((BigInteger) v));
+        VALUECONVERTERS.put(String.class, (v) -> ValueFactory.newString((String) v));
+        VALUECONVERTERS.put(Map.class, (v) -> {
+            Map<Object, Object> map = (Map<Object, Object>) v;
+            List<Map.Entry<Value, Value>> entries = new ArrayList<>(map.size());
+            map.entrySet().forEach((entry) -> {
+                try {
+                    entries.add(ValueFactory.newMapEntry(objectToValue(entry.getKey()), objectToValue(entry.getValue())));
+                } catch (IOException ex) {
+                }
+            });
+            return ValueFactory.newMap(entries.toArray(new Map.Entry[0]));
+        });
+    }
+
+    protected static Value objectToValue(Object object) throws IOException {
+        Class<?> objectType = object.getClass();
+        if (objectType.isArray()) {
+            int n = Array.getLength(object);
+            if (n == 0) {
+                return ValueFactory.emptyArray();
+            }
+            Function<Object, Value> conv = VALUECONVERTERS.get(objectType.getComponentType());
+            if (conv == null) {
+                conv = VALUECONVERTERS.get(Array.get(object, 0).getClass());
+                if (conv == null) {
+                    throw new IOException("Unsupported type in serialization: " + objectType.getComponentType());
+                }
+            }
+            Value[] values = new Value[n];
+            for (int i = 0; i < values.length; i++) {
+                values[i] = conv.apply(Array.get(object, i));
+            }
+            return ValueFactory.newArray(values);
+        } else {
+            Function<Object, Value> conv = VALUECONVERTERS.get(objectType);
+            if (conv == null) {
+                throw new IOException("Unsupported type in serialization: " + objectType);
+            }
+            return conv.apply(object);
+        }
+    }
+
     abstract class ReconTableWriter implements ReconTable {
 
         private final String name;
-        protected final Set<String> signals;        
+        protected final Set<String> signals;
         private final Map<String, Object> meta;
         private final Map<String, Map<String, Object>> signalMeta;
 
         ReconTableWriter(String name, Iterable<String> signals) {
             this.name = name;
-            this.signals = Sets.newLinkedHashSet(signals);            
+            this.signals = Sets.newLinkedHashSet(signals);
             this.meta = Maps.newHashMap();
             this.signalMeta = Maps.newHashMap();
         }
-        
+
         protected void checkSignalExistence(String signal, boolean shouldExist) throws ReconException {
-            if(shouldExist && !signals.contains(signal)) {
+            if (shouldExist && !signals.contains(signal)) {
                 throw new ReconException("Signal " + signal + " does not exist");
             }
-            if(!shouldExist && signals.contains(signal)) {
+            if (!shouldExist && signals.contains(signal)) {
                 throw new ReconException("Signal " + signal + " already exists");
             }
         }
@@ -260,7 +337,7 @@ public abstract class ReconWriter extends ReconFile {
             checkNotFinalized();
             checkSignalExistence(signal, true);
             if (!signalMeta.containsKey(signal)) {
-                signalMeta.put(signal, new HashMap<String, Object>());
+                signalMeta.put(signal, new HashMap<>());
             }
             signalMeta.get(signal).put(name, data);
         }
@@ -273,7 +350,7 @@ public abstract class ReconWriter extends ReconFile {
         @Override
         public final <T> T[] getSignal(String signal, Class<T> c) throws ReconException {
             throw new WriteOnlyException();
-        }           
+        }
     }
 
     abstract class ReconObjectWriter implements ReconObject {
